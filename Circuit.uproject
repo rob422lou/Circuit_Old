@@ -7,7 +7,10 @@
 		{
 			"Name": "ShooterGame",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
 		},
 		{
 			"Name": "ShooterGameLoadingScreen",
@@ -75,6 +78,30 @@
 		{
 			"Name": "Synthesis",
 			"Enabled": true
+		},
+		{
+			"Name": "OculusVR",
+			"Enabled": false,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Android"
+			]
+		},
+		{
+			"Name": "SteamVR",
+			"Enabled": false,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Linux"
+			]
+		},
+		{
+			"Name": "ModelingToolsEditorMode",
+			"Enabled": true
+		},
+		{
+			"Name": "SunPosition",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [
@@ -89,7 +116,9 @@
 		"LinuxClient",
 		"LinuxAArch64NoEditor",
 		"LinuxAArch64Server",
-		"LinuxAArchClient"
+		"LinuxAArchClient",
+		"Windows",
+		"Mac"
 	],
 	"EpicSampleNameHash": "3868556100"
 }
