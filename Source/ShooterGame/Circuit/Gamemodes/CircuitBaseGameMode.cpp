@@ -2,16 +2,16 @@
 
 #include "ShooterGame.h"
 #include "Circuit/Online/CircuitGameState.h"
+#include "Circuit/UI/CircuitHUD.h"
 #include "Circuit/Gamemodes/CircuitBaseGameMode.h"
 
 ACircuitBaseGameMode::ACircuitBaseGameMode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	/*
-	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnOb(TEXT("/Game/Blueprints/Pawns/CircuitPlayerPawn"));
+	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnOb(TEXT("/Game/Circuit/Blueprints/Pawns/CircuitPlayerPawn"));
 	DefaultPawnClass = PlayerPawnOb.Class;
-	//GameStateClass = APerdixGameState::StaticClass();
 	HUDClass = ACircuitHUD::StaticClass();
-	*/
+	GameStateClass = ACircuitGameState::StaticClass();
+
 	bAllowBots = false;
 	MinRespawnDelay = 2.0f;
 
