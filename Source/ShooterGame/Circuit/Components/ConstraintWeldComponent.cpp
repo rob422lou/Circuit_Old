@@ -38,8 +38,25 @@ void UConstraintWeldComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
 bool UConstraintWeldComponent::AddWeld(AActor* Actor1, AActor* Actor2)
 {
+	// If either don't exist
 	if (!Actor1 || !Actor2 || Actor1 == Actor2) {
 		return false;
+	}
+
+	// @TODO - Make it so you can weld to static objects and freeze other objects until unwelded.
+	// Don't allow welding to immovable objects
+	if (Actor1->GetRootComponent()->Mobility != EComponentMobility::Movable || Actor2->GetRootComponent()->Mobility != EComponentMobility::Movable) {
+		UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - AddWeld() Can't weld to static object"));
+		return false;
+	}
+
+	// If either don't have the component (This is done in the weld tool but just in case)
+	if (!Actor1->FindComponentByClass<UConstraintWeldComponent>()) {
+		Actor1->AddComponentByClass(UConstraintWeldComponent::StaticClass(), false, FTransform::Identity, false);
+	}
+
+	if (!Actor2->FindComponentByClass<UConstraintWeldComponent>()) {
+		Actor2->AddComponentByClass(UConstraintWeldComponent::StaticClass(), false, FTransform::Identity, false);
 	}
 
 	// Make sure Actor1 isn't already (edge) welded to Actor2 and return true
@@ -51,15 +68,16 @@ bool UConstraintWeldComponent::AddWeld(AActor* Actor1, AActor* Actor2)
 	// If actors are in same weld system just add to weldgraph and return true
 	if (IsIndirectlyWeldedTo(Actor1, Actor2)) {
 		UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - AddWeld() Indirectly welded to"));
-		WeldGraph.AddUnique(Actor1, Actor2);
-		WeldGraph.AddUnique(Actor2, Actor1);
+		GetConstraintWeldComponentRoot(Actor1)->WeldGraph.AddUnique(Actor1, Actor2);
+		GetConstraintWeldComponentRoot(Actor1)->WeldGraph.AddUnique(Actor2, Actor1);
 		return true;
 	}
 
-	UConstraintWeldComponent* Actor1ConstraintWeldComponent = GetConstraintWeldComponent(Actor1);
-	UConstraintWeldComponent* Actor2ConstraintWeldComponent = GetConstraintWeldComponent(Actor2);
+	UConstraintWeldComponent* Actor1ConstraintWeldComponent = GetConstraintWeldComponentRoot(Actor1);
+	UConstraintWeldComponent* Actor2ConstraintWeldComponent = GetConstraintWeldComponentRoot(Actor2);
 
 	if (!Actor1ConstraintWeldComponent || !Actor2ConstraintWeldComponent) {
+		UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - AddWeld() !Actor1ConstraintWeldComponent || !Actor2ConstraintWeldComponent"));
 		return false;
 	}
 
@@ -67,7 +85,7 @@ bool UConstraintWeldComponent::AddWeld(AActor* Actor1, AActor* Actor2)
 		Actor2ConstraintWeldComponent->WeldGraph.AddUnique(Actor1, Actor2);
 		Actor2ConstraintWeldComponent->WeldGraph.AddUnique(Actor2, Actor1);
 
-		UE_LOG(LogTemp, Error, TEXT("UConstraintWeldComponent - AddWeld() Here 1 %d"), Actor2ConstraintWeldComponent->WeldGraph.Num());
+		//UE_LOG(LogTemp, Error, TEXT("UConstraintWeldComponent - AddWeld() Here 1 %d"), Actor2ConstraintWeldComponent->WeldGraph.Num());
 
 		// Move Actor1 weld manager into Actor2
 		Actor2ConstraintWeldComponent->CombineConstraintWeldComponents(Actor1ConstraintWeldComponent);
@@ -76,7 +94,7 @@ bool UConstraintWeldComponent::AddWeld(AActor* Actor1, AActor* Actor2)
 		Actor1ConstraintWeldComponent->WeldGraph.AddUnique(Actor1, Actor2);
 		Actor1ConstraintWeldComponent->WeldGraph.AddUnique(Actor2, Actor1);
 
-		UE_LOG(LogTemp, Error, TEXT("UConstraintWeldComponent - AddWeld() Here 2 %d"), Actor1ConstraintWeldComponent->WeldGraph.Num());
+		//UE_LOG(LogTemp, Error, TEXT("UConstraintWeldComponent - AddWeld() Here 2 %d"), Actor1ConstraintWeldComponent->WeldGraph.Num());
 
 		// Move Actor2 weld manager into this WeldManager
 		Actor1ConstraintWeldComponent->CombineConstraintWeldComponents(Actor2ConstraintWeldComponent);
@@ -87,6 +105,7 @@ bool UConstraintWeldComponent::AddWeld(AActor* Actor1, AActor* Actor2)
 
 bool UConstraintWeldComponent::RemoveWeld(AActor* KeyActor, AActor* ValueActor)
 {
+	// Value actor containts rootComp as it's calling this function
 	UConstraintWeldComponent* rootComp = GetConstraintWeldComponent(AttachedParentRoot);
 	if (!KeyActor || !ValueActor || KeyActor == ValueActor) {
 		UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RemoveWeld() Equal or missing"));
@@ -117,7 +136,8 @@ bool UConstraintWeldComponent::RemoveWeld(AActor* KeyActor, AActor* ValueActor)
 		// Reroot both sides
 
 		// If this component contains the root
-		if (Visited.Contains(AttachedParentRoot)) {
+		if (Visited.Contains(rootComp->AttachedParentRoot)) {
+			//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RemoveWeld() Contains"));
 			// Migrate ValueActor weld/constraints graphs to new manager. Remove that data from this WeldGraph.
 			UConstraintWeldComponent* otherComp = GetConstraintWeldComponent(ValueActor);
 			for (TPair<AActor*, AActor*> It : rootComp->WeldGraph)
@@ -134,12 +154,15 @@ bool UConstraintWeldComponent::RemoveWeld(AActor* KeyActor, AActor* ValueActor)
 			}
 
 			// Have new graph reroot everything to AttachedParentRoot.
+			//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RemoveWeld() ValueActor: %s"), *ValueActor->GetName());
 			otherComp->AttachedParentRoot = ValueActor;
 			otherComp->RerootGraph();
-
+			//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RemoveWeld() otherComp->APR: %s"), *otherComp->AttachedParentRoot->GetName());
+			//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RemoveWeld() rootComp->APR: %s"), *rootComp->AttachedParentRoot->GetName());
 			// TODO - add logic for constraints
 		}
 		else {
+			//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RemoveWeld() Does not contain"));
 			// If this component does not contain the root
 
 			UConstraintWeldComponent* otherComp = GetConstraintWeldComponent(KeyActor);
@@ -157,10 +180,12 @@ bool UConstraintWeldComponent::RemoveWeld(AActor* KeyActor, AActor* ValueActor)
 				rootComp->WeldGraph.RemoveSingle(It.Value, It.Key);
 			}
 
+			//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RemoveWeld() KeyActor: %s"), *KeyActor->GetName());
 			// Have new graph reroot everything to AttachedParentRoot.
-			AttachedParentRoot = KeyActor;
+			otherComp->AttachedParentRoot = KeyActor;
 			otherComp->RerootGraph();
-
+			//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RemoveWeld() otherComp->APR: %s"), *otherComp->AttachedParentRoot->GetName());
+			//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RemoveWeld() rootComp->APR: %s"), *rootComp->AttachedParentRoot->GetName());
 			// TODO - add logic for constraints
 		}
 		return true;
@@ -171,7 +196,7 @@ bool UConstraintWeldComponent::RemoveWeld(AActor* KeyActor, AActor* ValueActor)
 
 bool UConstraintWeldComponent::IsDirectlyWeldedTo(AActor* Actor1, AActor* Actor2)
 {
-	if (WeldGraph.FindPair(Actor1, Actor2) || WeldGraph.FindPair(Actor2, Actor1)) {
+	if (GetConstraintWeldComponentRoot(Actor1)->WeldGraph.FindPair(Actor1, Actor2) || GetConstraintWeldComponentRoot(Actor1)->WeldGraph.FindPair(Actor2, Actor1)) {
 		return true;
 	}
 	return false;
@@ -203,7 +228,7 @@ void UConstraintWeldComponent::CombineConstraintWeldComponents(UConstraintWeldCo
 
 	// Move old parent over first
 	if (AddingFrom->AttachedParentRoot) {
-		//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - CombineConstraintWeldComponents() Move old parent over first"));
+		UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - CombineConstraintWeldComponents() Move old parent over first"));
 		AddingFrom->AttachedParentRoot->AttachToComponent(AttachedParentRoot->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true), "");
 
 		//AddingFrom->AttachedParentRoot->WeldAttachmentReplication.AttachParent = AttachedParentRoot;
@@ -253,6 +278,14 @@ void UConstraintWeldComponent::CombineConstraintWeldComponents(UConstraintWeldCo
 UConstraintWeldComponent* UConstraintWeldComponent::GetConstraintWeldComponent(AActor* Actor) {
 	if (Actor->FindComponentByClass<UConstraintWeldComponent>() != nullptr && Actor->FindComponentByClass<UConstraintWeldComponent>()->AttachedParentRoot != nullptr) {
 		//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - GetConstraintWeldComponent() Here"));
+		return Actor->FindComponentByClass<UConstraintWeldComponent>();
+	}
+	return Actor->FindComponentByClass<UConstraintWeldComponent>();
+}
+
+UConstraintWeldComponent* UConstraintWeldComponent::GetConstraintWeldComponentRoot(AActor* Actor) {
+	if (Actor->FindComponentByClass<UConstraintWeldComponent>() != nullptr && Actor->FindComponentByClass<UConstraintWeldComponent>()->AttachedParentRoot != nullptr) {
+		//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - GetConstraintWeldComponent() Here"));
 		return Actor->FindComponentByClass<UConstraintWeldComponent>()->AttachedParentRoot->FindComponentByClass<UConstraintWeldComponent>();
 	}
 	return Actor->FindComponentByClass<UConstraintWeldComponent>();
@@ -265,7 +298,7 @@ bool UConstraintWeldComponent::DFS(AActor* V, AActor* SearchingFor, TArray<AActo
 	bool bReturn = false;
 
 	TArray<AActor*> Out;
-	WeldGraph.MultiFind(V, Out);
+	GetConstraintWeldComponentRoot(AttachedParentRoot)->WeldGraph.MultiFind(V, Out);
 
 	for (int i = 0; i < Out.Num(); i++) {
 		if (Out[i] == SearchingFor) {
@@ -285,7 +318,7 @@ void UConstraintWeldComponent::RerootGraph()
 {
 	UConstraintWeldComponent* rootComp = GetConstraintWeldComponent(AttachedParentRoot);
 
-	UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RerootGraph()"));
+	UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - RerootGraph() rootComp->AttachedParentRoot: %s"), *rootComp->AttachedParentRoot->GetName());
 	//AttachedParentRoot->WeldAttachmentReplication.AttachParent = NULL;
 	rootComp->AttachedParentRoot->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	//AttachedParentRoot->SetWeldManager(this);
@@ -322,4 +355,12 @@ void UConstraintWeldComponent::DebugDrawWelds() {
 			DrawDebugDirectionalArrow(GetWorld(), AttachedParentRoot->GetActorLocation(), pair.Value->GetActorLocation(), 15.0f, FColor::Orange, false, -1.0f, 0, 1);
 		}
 	}
+}
+
+int UConstraintWeldComponent::DebugGetWeldGraphNum() {
+	return WeldGraph.Num();
+}
+
+FString UConstraintWeldComponent::DebugGetAttachedParentRootName() {
+	return AttachedParentRoot->GetName();
 }

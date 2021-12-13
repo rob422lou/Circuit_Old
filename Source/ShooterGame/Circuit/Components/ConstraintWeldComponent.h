@@ -52,8 +52,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
 	UConstraintWeldComponent* GetConstraintWeldComponent(AActor* Actor);
+	UConstraintWeldComponent* GetConstraintWeldComponentRoot(AActor* Actor);
 
 	void RerootGraph();
 
 	void DebugDrawWelds();
+
+	UFUNCTION(BlueprintPure, Category = "Circuit|Debug")
+	int DebugGetWeldGraphNum();
+
+	UFUNCTION(BlueprintPure, Category = "Circuit|Debug")
+	FString DebugGetAttachedParentRootName();
 };
