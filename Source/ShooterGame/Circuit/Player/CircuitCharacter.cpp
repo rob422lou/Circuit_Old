@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "ShooterGame.h"
+#include "Public/Weapons/ShooterWeapon.h"
 #include "Circuit/Player/CircuitCharacter.h"
 
 ACircuitCharacter::ACircuitCharacter(const FObjectInitializer& ObjectInitializer)
@@ -53,15 +54,14 @@ void ACircuitCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	//PlayerInputComponent->BindAction("MouseWheelUp", IE_Pressed, this, &APerdixCharacter::OnStartMouseWheelUp);
-	//PlayerInputComponent->BindAction("MouseWheelDown", IE_Pressed, this, &APerdixCharacter::OnStartMouseWheelDown);
-	//PlayerInputComponent->BindAction("Noclip", IE_Pressed, this, &APerdixCharacter::Noclip);
+	//PlayerInputComponent->BindAction("MouseWheelUp", IE_Pressed, this, &ACircuitCharacter::OnStartMouseWheelUp);
+	//PlayerInputComponent->BindAction("MouseWheelDown", IE_Pressed, this, &ACircuitCharacter::OnStartMouseWheelDown);
+	//PlayerInputComponent->BindAction("Noclip", IE_Pressed, this, &ACircuitCharacter::Noclip);
 	PlayerInputComponent->BindAction("Use", IE_Pressed, this, &ACircuitCharacter::OnStartUse);
 	PlayerInputComponent->BindAction("Use", IE_Released, this, &ACircuitCharacter::OnStopUse);
-	//PlayerInputComponent->BindAction("QuickMenu", IE_Pressed, this, &APerdixCharacter::OnStartQuickMenu);
-	//PlayerInputComponent->BindAction("QuickMenu", IE_Released, this, &APerdixCharacter::OnStopQuickMenu);
+	//PlayerInputComponent->BindAction("QuickMenu", IE_Pressed, this, &ACircuitCharacter::OnStartQuickMenu);
+	//PlayerInputComponent->BindAction("QuickMenu", IE_Released, this, &ACircuitCharacter::OnStopQuickMenu);
 
-	/*
 	const FName name = FName("Reload");
 	const FKey oldKey = FKey("R");
 
@@ -79,9 +79,122 @@ void ACircuitCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 		}
 	}
 
-	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &APerdixCharacter::OnStartReload);
-	PlayerInputComponent->BindAction("Reload", IE_Released, this, &APerdixCharacter::OnStopReload);
-	*/
+	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ACircuitCharacter::OnStartReload);
+	PlayerInputComponent->BindAction("Reload", IE_Released, this, &ACircuitCharacter::OnStopReload);
+}
+
+void ACircuitCharacter::OnStartReload_Implementation()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	if (!MyPC || !MyPC->IsGameInputAllowed() || CurrentWeapon == nullptr)
+		return;
+
+	AShooterWeapon* CircuitWeapon = Cast<AShooterWeapon>(CurrentWeapon);
+	if (CircuitWeapon != nullptr) {
+		if (GetLocalRole() < ROLE_Authority)
+		{
+			ServerOnStartReload();
+		}
+		CircuitWeapon->OnStartReload();
+	}
+}
+
+void ACircuitCharacter::ServerOnStartReload_Implementation()
+{
+	OnStartReload();
+}
+
+bool ACircuitCharacter::ServerOnStartReload_Validate()
+{
+	return true;
+}
+
+void ACircuitCharacter::OnStopReload_Implementation()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	if (!MyPC || !MyPC->IsGameInputAllowed() || CurrentWeapon == nullptr)
+		return;
+
+	AShooterWeapon* CircuitWeapon = Cast<AShooterWeapon>(CurrentWeapon);
+	if (CircuitWeapon != nullptr) {
+		if (GetLocalRole() < ROLE_Authority)
+		{
+			ServerOnStopReload();
+		}
+		CircuitWeapon->OnStopReload();
+	}
+}
+
+void ACircuitCharacter::ServerOnStopReload_Implementation()
+{
+	OnStopReload();
+}
+
+bool ACircuitCharacter::ServerOnStopReload_Validate()
+{
+	return true;
+}
+
+void ACircuitCharacter::OnStartTargeting_Implementation()
+{
+	
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	if (!MyPC || !MyPC->IsGameInputAllowed() || CurrentWeapon == nullptr)
+		return;
+	
+	AShooterWeapon* CircuitWeapon = Cast<AShooterWeapon>(CurrentWeapon);
+	if (CircuitWeapon != nullptr) {
+		if (GetLocalRole() < ROLE_Authority)
+		{
+			ServerOnStartTargeting();
+		}
+		CircuitWeapon->OnStartTargeting();
+		SetTargeting(false);
+	}
+	else {
+		Super::OnStartTargeting();
+	}
+}
+
+void ACircuitCharacter::ServerOnStartTargeting_Implementation()
+{
+	OnStartTargeting();
+}
+
+bool ACircuitCharacter::ServerOnStartTargeting_Validate()
+{
+	return true;
+}
+
+void ACircuitCharacter::OnStopTargeting_Implementation()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	if (!MyPC || !MyPC->IsGameInputAllowed() || CurrentWeapon == nullptr)
+		return;
+
+	AShooterWeapon* CircuitWeapon = Cast<AShooterWeapon>(CurrentWeapon);
+	if (CircuitWeapon != nullptr) {
+		if (GetLocalRole() < ROLE_Authority)
+		{
+			ServerOnStopTargeting();
+		}
+
+		CircuitWeapon->OnStopTargeting();
+		SetTargeting(false);
+	}
+	else {
+		Super::OnStopTargeting();
+	}
+}
+
+void ACircuitCharacter::ServerOnStopTargeting_Implementation()
+{
+	OnStopTargeting();
+}
+
+bool ACircuitCharacter::ServerOnStopTargeting_Validate()
+{
+	return true;
 }
 
 void ACircuitCharacter::OnStartUse_Implementation()

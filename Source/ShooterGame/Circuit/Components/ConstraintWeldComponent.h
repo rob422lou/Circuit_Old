@@ -35,6 +35,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
 	bool AddWeld(AActor* Actor1, AActor* Actor2);
 
+	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
+	bool RemoveWeld(AActor* KeyActor, AActor* ValueActor);
+
 	bool IsDirectlyWeldedTo(AActor* Actor1, AActor* Actor2);
 
 	// Looks for an indirect connection between 2 actors using a DFS algorithm
@@ -49,6 +52,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
 	UConstraintWeldComponent* GetConstraintWeldComponent(AActor* Actor);
+
+	void RerootGraph();
 
 	void DebugDrawWelds();
 };

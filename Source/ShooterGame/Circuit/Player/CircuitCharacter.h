@@ -72,8 +72,39 @@ public:
 	UFUNCTION(WithValidation, Server, Reliable)
 	void ServerOnStopUse();
 
-//////////////////////////////////////////////////////////////////////////
-// Renderer Functions
+	//////////////////////////////////////////////////////////////////////////
+	// Weapon usage
+
+	UFUNCTION(BlueprintNativeEvent, Category = PlayerAbility)
+	void OnStartReload();
+
+	UFUNCTION(reliable, server, WithValidation)
+	void ServerOnStartReload();
+
+	UFUNCTION(BlueprintNativeEvent, Category = PlayerAbility)
+	void OnStopReload();
+
+	UFUNCTION(reliable, server, WithValidation)
+	void ServerOnStopReload();
+
+	/** player pressed targeting action (Changed ShooterCharacter.h OnStartTargeting to virtual) */
+	UFUNCTION(BlueprintNativeEvent, Category = PlayerAbility)
+	void OnStartTargeting() override;
+
+	/* When targeting keypress first happens, before "SetTargeting()" */
+	UFUNCTION(reliable, server, WithValidation)
+	void ServerOnStartTargeting();
+
+	/** player released targeting action */
+	UFUNCTION(BlueprintNativeEvent, Category = PlayerAbility)
+	void OnStopTargeting() override;
+
+	/* When targeting keypress ends, before "SetTargeting()" */
+	UFUNCTION(reliable, server, WithValidation)
+	void ServerOnStopTargeting();
+	
+	//////////////////////////////////////////////////////////////////////////
+	// Renderer Functions
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Rendering")
 	void SetOutlineColor(EStencilColor OutlineColor, AActor* highlightActor);
 };
