@@ -175,7 +175,7 @@ public:
 	struct FRepAttachment CustomAttachmentReplication;
 
 	//[Server + Client]
-	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedInterpolationMovement)
+	UPROPERTY()
 	FLinearInterpolation ReplicatedInterpolationMovement;
 
 	/** Called on client when updated AttachmentReplication value is received for this actor. */
@@ -185,11 +185,19 @@ public:
 	UFUNCTION()
 	virtual void OnRep_CustomAttachmentReplication();
 
-	UFUNCTION()
-	virtual void OnRep_ReplicatedInterpolationMovement();
+	//UFUNCTION()
+	//virtual void OnRep_ReplicatedInterpolationMovement();
 
 	// [Server] Update clients of world position of this
 	void ReplicateInterpolationMovement();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multi_UpdateInterpMovement(FLinearInterpolation newRep);
+	bool Multi_UpdateInterpMovement_Validate(FLinearInterpolation newRep);
+	void Multi_UpdateInterpMovement_Implementation(FLinearInterpolation newRep);
+
+
+	void Client_UpdateReplicatedInterpMovement();
 
 //////////////////////////////////////////////////////////////////////////
 // Helpers

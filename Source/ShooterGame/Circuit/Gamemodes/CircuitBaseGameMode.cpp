@@ -47,6 +47,8 @@ void ACircuitBaseGameMode::InitGameState()
 	if (MyGameState)
 	{
 		MyGameState->bUsesCustomNetworking = bUsesCustomNetworking;
+		MyGameState->ClientBufferTime = ClientBufferTime; //Time client waits to start interpolating so that it has time to build a buffer. (Default value is too high and slow)
+		MyGameState->ServerSnapshotTime = ServerSnapshotTime;   //Rate at which server samples and sends position data for interpolation. (Default value is too high and slow)
 	}
 }
 

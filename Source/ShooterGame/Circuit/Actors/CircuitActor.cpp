@@ -14,7 +14,7 @@ ACircuitActor::ACircuitActor()
 	InitialMovementTime = 0.0f;
 	LastUpdateTime = 0.0f;
 
-	bAlwaysRelevant = false;
+	bAlwaysRelevant = true;
 	bReplicates = true;
 	//bReplicateMovement = false;
 	bOnlyRelevantToOwner = false;
@@ -31,6 +31,7 @@ ACircuitActor::ACircuitActor()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 	PrimaryActorTick.bTickEvenWhenPaused = true;
+
 }
 
 // Called when the game starts or when spawned
@@ -46,8 +47,14 @@ void ACircuitActor::BeginPlay()
 
 	if (bReplicates && bUsesCustomNetworking) {
 		// Load these values in from the game state
-		ClientBufferTime = Cast<ACircuitGameState>(GetWorld()->GetGameState())->ClientBufferTime;
-		ServerSnapshotTime = Cast<ACircuitGameState>(GetWorld()->GetGameState())->ServerSnapshotTime;
+		const ACircuitGameState* DefGame = Cast<ACircuitGameState>(GetWorld()->GetGameState());
+		if (DefGame) {
+			ClientBufferTime = DefGame->ClientBufferTime;
+			ServerSnapshotTime = DefGame->ServerSnapshotTime;
+		}
+		else {
+			UE_LOG(LogTemp, Warning, TEXT("[%f] ACircuitGameState BeginPlay() DefGame null"), GetWorld()->GetRealTimeSeconds());
+		}
 
 		if (GetNetMode() == ENetMode::NM_Client) {
 			// @todo - Add exceptions for components that are purely aesthetic but still should simulate physically. 
@@ -156,7 +163,7 @@ void ACircuitActor::Tick(float DeltaTime)
 	float LerpPercent = 0.0f;
 	const float LerpLimit = 1.15f;
 	float ServerDelta = (MovementBuffer.Num() > 1) ? (MovementBuffer[1].TimeStamp - MovementBuffer[0].TimeStamp) : 0.0f;
-
+	//UE_LOG(LogTemp, Error, TEXT("[%f] [CLIENT] CircuitActor - Tick() ServerDelta: %d"), GetWorld()->GetRealTimeSeconds(), ServerDelta);
 	// Has at least 1 move to make
 	if (ServerDelta > SMALL_NUMBER)
 	{
@@ -172,10 +179,13 @@ void ACircuitActor::Tick(float DeltaTime)
 		}
 		// No more moves to make
 		LerpPercent = 1.0f;
+
+		//UE_LOG(LogTemp, Error, TEXT("[%f] [CLIENT] CircuitActor - Tick() LerpPercent: %d"), GetWorld()->GetRealTimeSeconds(), LerpPercent);
 	}
 
 	// LerpPercent is too high, need to move buffer forward and recalculate lerppercent based on new movement point
 	if (LerpPercent >= (1.0f - KINDA_SMALL_NUMBER)) {
+		//UE_LOG(LogTemp, Error, TEXT("[%f] [CLIENT] CircuitActor - Tick() MovementBuffer.RemoveAt(0): %d"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num());
 		MovementBuffer.RemoveAt(0);
 		if (MovementBuffer.Num() > 1) {
 			// Convert to world location if needed
@@ -213,6 +223,8 @@ void ACircuitActor::Tick(float DeltaTime)
 		}
 		else {
 			if (MovementBuffer.Num() > 0) {
+				//UE_LOG(LogTemp, Error, TEXT("[%f] [CLIENT] CircuitActor - Tick() MovementBuffer.Num() : %d"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num());
+
 				// Convert to world location if needed
 				if (MovementBuffer[0].bIsRelativeLocation) {
 					MovementBuffer[0].bIsRelativeLocation = false;
@@ -314,22 +326,25 @@ void ACircuitActor::OnRep_CustomAttachmentReplication()
 	}
 }
 
+/** Replaced with Client_UpdateReplicatedInterpMovement multicast
 // @todo - Take another look at reducing the number of replicated values that are the same as the last replicated values
 void ACircuitActor::OnRep_ReplicatedInterpolationMovement()
 {
+	return;
 	if (CustomAttachmentReplication.AttachParent != nullptr) {
 		return;
 	}
 
 	if ((ReplicatedInterpolationMovement.GetLocation() - GetActorLocation()).Size() < 0.5f
 		&& ReplicatedInterpolationMovement.GetQuat().Equals(GetActorQuat(), 0.0001f)) {
-		UE_LOG(LogTemp, Warning, TEXT("[%f] PerdixActor OnRep_ReplicatedInterpolationMovement() New position same as current position. Actor: %s"), GetWorld()->GetRealTimeSeconds(), *GetName());
+		UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor OnRep_ReplicatedInterpolationMovement() New position same as current position. Actor: %s"), GetWorld()->GetRealTimeSeconds(), *GetName());
 		return;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor OnRep_ReplicatedInterpolationMovement() MovementBuffer.Num() %d %f"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num(), ReplicatedInterpolationMovement.TimeStamp);
+
 	// Add initial location first so we have 2 points to interpolate between
 	if (MovementBuffer.Num() == 0) {
-		UE_LOG(LogTemp, Warning, TEXT("[%f] ACircuitActor OnRep_ReplicatedInterpolationMovement() HERE 1"), GetWorld()->GetRealTimeSeconds());
 
 		InitialMovementTime = ReplicatedInterpolationMovement.TimeStamp - GetNetworkSendInterval();
 		CurrentMovementTime = ReplicatedInterpolationMovement.TimeStamp;
@@ -342,8 +357,9 @@ void ACircuitActor::OnRep_ReplicatedInterpolationMovement()
 		);
 	}
 
+	//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor OnRep_ReplicatedInterpolationMovement() %d %d"), GetWorld()->GetRealTimeSeconds(), ReplicatedInterpolationMovement.TimeStamp, MovementBuffer[MovementBuffer.Num() - 1].TimeStamp);
 	if (ReplicatedInterpolationMovement.TimeStamp > MovementBuffer[MovementBuffer.Num() - 1].TimeStamp) {
-		UE_LOG(LogTemp, Warning, TEXT("[%f] ACircuitActor OnRep_ReplicatedInterpolationMovement() HERE 2"), GetWorld()->GetRealTimeSeconds());
+		//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor OnRep_ReplicatedInterpolationMovement() HERE 2"), GetWorld()->GetRealTimeSeconds());
 
 		bWasRelative = ReplicatedInterpolationMovement.bIsRelativeLocation;
 		MovementBuffer.Add(
@@ -364,13 +380,13 @@ void ACircuitActor::OnRep_ReplicatedInterpolationMovement()
 		UE_LOG(LogTemp, Warning, TEXT("[%f] ACircuitActor OnRep_ReplicatedInterpolationMovement() Purging buffer. > 32 Actor: %s"), GetWorld()->GetRealTimeSeconds(), *GetName());
 	}
 }
+*/
 
 void ACircuitActor::ReplicateInterpolationMovement()
 {
 	if (CustomAttachmentReplication.AttachParent != nullptr) {
 		return;
 	}
-
 	//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor ReplicateInterpolationMovement() HERE 0"), GetWorld()->GetRealTimeSeconds());
 
 	// If we haven't moved then don't send update.
@@ -390,28 +406,100 @@ void ACircuitActor::ReplicateInterpolationMovement()
 
 	// If this is a duplicate timestamp (check why this would happen), don't update.
 	if (ReplicatedInterpolationMovement.TimeStamp == GetWorld()->GetRealTimeSeconds()) {
-		UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor ReplicateInterpolationMovement() ReplicatedInterpolationMovement.TimeStamp == GetWorld()->GetRealTimeSeconds()"), GetWorld()->GetRealTimeSeconds());
+		UE_LOG(LogTemp, Warning, TEXT("[%f] [SERVER] ACircuitActor ReplicateInterpolationMovement() ReplicatedInterpolationMovement.TimeStamp == GetWorld()->GetRealTimeSeconds()"), GetWorld()->GetRealTimeSeconds());
 		return;
 	}
 
-	// @todo - causing micro jitter. Best seen at slow speeds.
+	// @TODO - causing micro jitter. Best seen at slow speeds.
 	if (false && FMath::Abs(GetActorLocation().X - LastWorldLocation.X) < 127 &&
 		FMath::Abs(GetActorLocation().Y - LastWorldLocation.Y) < 127 &&
 		FMath::Abs(GetActorLocation().Z - LastWorldLocation.Z) < 127 &&
 		(GetWorld()->GetRealTimeSeconds() - LastWorldUpdateTime) < (GetNetworkSendInterval() * 4)) {
 
-		//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor ReplicateInterpolationMovement() HERE 1"), GetWorld()->GetRealTimeSeconds());
+		UE_LOG(LogTemp, Warning, TEXT("[%f] [SERVER] ACircuitActor ReplicateInterpolationMovement() 1"), GetWorld()->GetRealTimeSeconds());
 
 		ReplicatedInterpolationMovement = FLinearInterpolation(GetActorLocation() - LastWorldLocation, GetActorQuat(), GetWorld()->GetRealTimeSeconds(), true);
+
+		Multi_UpdateInterpMovement(ReplicatedInterpolationMovement);
+
 		ForceNetUpdate();
 		LastWorldLocation = GetActorLocation();
 	}
 	else {
-		//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor ReplicateInterpolationMovement() HERE 2"), GetWorld()->GetRealTimeSeconds());
 		LastWorldLocation = GetActorLocation();
 		LastWorldUpdateTime = GetWorld()->GetRealTimeSeconds();
 		ReplicatedInterpolationMovement = FLinearInterpolation(GetActorLocation(), GetActorQuat(), GetWorld()->GetRealTimeSeconds(), false);
+		UE_LOG(LogTemp, Warning, TEXT("[%f] [SERVER] ACircuitActor ReplicateInterpolationMovement() %f"), GetWorld()->GetRealTimeSeconds(), ReplicatedInterpolationMovement.TimeStamp);
+
+		Multi_UpdateInterpMovement(ReplicatedInterpolationMovement);
+
 		ForceNetUpdate();
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+// New Replication Code 12/17/2021 (Organize after into the above section this code has been proven)
+
+void ACircuitActor::Client_UpdateReplicatedInterpMovement() {
+	if (CustomAttachmentReplication.AttachParent != nullptr) {
+		return;
+	}
+
+	if ((ReplicatedInterpolationMovement.GetLocation() - GetActorLocation()).Size() < 0.5f
+		&& ReplicatedInterpolationMovement.GetQuat().Equals(GetActorQuat(), 0.0001f)) {
+		UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Client_UpdateReplicatedInterpMovement() New position same as current position. Actor: %s"), GetWorld()->GetRealTimeSeconds(), *GetName());
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Client_UpdateReplicatedInterpMovement() MovementBuffer.Num() %d %f"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num(), ReplicatedInterpolationMovement.TimeStamp);
+
+	// Add initial location first so we have 2 points to interpolate between
+	if (MovementBuffer.Num() == 0) {
+
+		InitialMovementTime = ReplicatedInterpolationMovement.TimeStamp - GetNetworkSendInterval();
+		CurrentMovementTime = ReplicatedInterpolationMovement.TimeStamp;
+		MovementBuffer.Add(
+			FActorInterpolationBuffer(
+				GetActorLocation(),
+				GetActorQuat(),
+				ReplicatedInterpolationMovement.TimeStamp - GetNetworkSendInterval(),
+				false) // Time calculated is a best guess.
+		);
+	}
+
+	//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor OnRep_ReplicatedInterpolationMovement() %d %d"), GetWorld()->GetRealTimeSeconds(), ReplicatedInterpolationMovement.TimeStamp, MovementBuffer[MovementBuffer.Num() - 1].TimeStamp);
+	if (ReplicatedInterpolationMovement.TimeStamp > MovementBuffer[MovementBuffer.Num() - 1].TimeStamp) {
+		//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor OnRep_ReplicatedInterpolationMovement() HERE 2"), GetWorld()->GetRealTimeSeconds());
+
+		bWasRelative = ReplicatedInterpolationMovement.bIsRelativeLocation;
+		MovementBuffer.Add(
+			FActorInterpolationBuffer(
+				ReplicatedInterpolationMovement.GetLocation(),
+				ReplicatedInterpolationMovement.GetQuat(),
+				ReplicatedInterpolationMovement.TimeStamp,
+				ReplicatedInterpolationMovement.bIsRelativeLocation)
+		);
+	}
+
+	// @fix - This purges relative locations. Convert to world location.
+	if (MovementBuffer.Num() > 32) {
+		MovementBuffer.RemoveAt(0, 1);
+		while (MovementBuffer.Num() > 0 && MovementBuffer[0].bIsRelativeLocation == true) {
+			MovementBuffer.RemoveAt(0, 1);
+		}
+		UE_LOG(LogTemp, Warning, TEXT("[%f] ACircuitActor Client_UpdateReplicatedInterpMovement() Purging buffer. > 32 Actor: %s"), GetWorld()->GetRealTimeSeconds(), *GetName());
+	}
+}
+
+bool ACircuitActor::Multi_UpdateInterpMovement_Validate(FLinearInterpolation newRep) {
+	return true;
+}
+
+void ACircuitActor::Multi_UpdateInterpMovement_Implementation(FLinearInterpolation newRep) {
+	if (GetNetMode() == ENetMode::NM_Client) {
+		ReplicatedInterpolationMovement = newRep;
+		Client_UpdateReplicatedInterpMovement();
+		UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Multi_UpdateInterpMovement_Implementation() %f"), GetWorld()->GetRealTimeSeconds(), newRep.TimeStamp);
 	}
 }
 
@@ -449,7 +537,7 @@ void ACircuitActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	// Replicate to every client, no special condition required
-	DOREPLIFETIME(ACircuitActor, ReplicatedInterpolationMovement);
+	//DOREPLIFETIME(ACircuitActor, ReplicatedInterpolationMovement);
 	DOREPLIFETIME(ACircuitActor, CustomAttachmentReplication);
 }
 
@@ -489,6 +577,7 @@ ACircuitActor* ACircuitActor::GetTopAttachedParent(ACircuitActor* Child)
 // Debug
 
 void ACircuitActor::DebugDrawWelds() {
+	return;
 	ACircuitActor* top = GetTopAttachedParent(this);
 	if (top == nullptr) {
 		return;
