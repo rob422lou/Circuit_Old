@@ -19,4 +19,10 @@ public:
 	/** number of teams in current game (doesn't deprecate when no players are left in a team) */
 	UPROPERTY(Transient, Replicated, BlueprintReadOnly, Category = "Networking")
 	bool bUsesCustomNetworking;
+
+	// Used in Circuit actor position replication
+	UPROPERTY(Transient, Replicated, BlueprintReadOnly, Category = "Networking")
+	float ClientBufferTime;
+	UPROPERTY(Transient, Replicated, BlueprintReadOnly, Category = "Networking")
+	float ServerSnapshotTime;
 };

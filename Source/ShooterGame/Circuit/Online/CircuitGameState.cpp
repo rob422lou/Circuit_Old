@@ -8,4 +8,6 @@ void ACircuitGameState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& 
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ACircuitGameState, bUsesCustomNetworking);
+	DOREPLIFETIME(ACircuitGameState, ClientBufferTime);
+	DOREPLIFETIME(ACircuitGameState, ServerSnapshotTime);
 }

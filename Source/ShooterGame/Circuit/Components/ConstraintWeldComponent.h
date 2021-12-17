@@ -38,6 +38,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
 	bool RemoveWeld(AActor* KeyActor, AActor* ValueActor);
 
+	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
+	void RemoveAllWeldsFrom(AActor* Actor);
+
 	bool IsDirectlyWeldedTo(AActor* Actor1, AActor* Actor2);
 
 	// Looks for an indirect connection between 2 actors using a DFS algorithm

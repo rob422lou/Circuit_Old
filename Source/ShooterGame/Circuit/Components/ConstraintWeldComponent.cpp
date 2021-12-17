@@ -1,7 +1,11 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "ShooterGame.h"
+#include "Circuit/Actors/CircuitActor.h"
+#include "Circuit/Online/CircuitGameState.h"
 #include "Circuit/Components/ConstraintWeldComponent.h"
+
+// @TODO - Add the ability to attach to sockets. See CombineConstraintWeldComponents.
 
 // Sets default values for this component's properties
 UConstraintWeldComponent::UConstraintWeldComponent()
@@ -22,6 +26,9 @@ void UConstraintWeldComponent::BeginPlay()
 	AttachedParentRoot = GetOwner();
 	// ...
 
+	if (GetNetMode() != ENetMode::NM_Standalone && GetNetMode() != ENetMode::NM_ListenServer && GetNetMode() != ENetMode::NM_DedicatedServer) {
+		UE_LOG(LogTemp, Warning, TEXT("[CLIENT] UConstraintWeldComponent - BeginPlay() ConstraintWeldComponent created"));
+	}
 }
 
 
@@ -194,6 +201,25 @@ bool UConstraintWeldComponent::RemoveWeld(AActor* KeyActor, AActor* ValueActor)
 	return false;
 }
 
+void UConstraintWeldComponent::RemoveAllWeldsFrom(AActor* Actor)
+{
+	if (!Actor) {
+		return;
+	}
+
+	// @todo - get all children of actor. disconnect from all children. reroot each child if needed.
+
+	TArray<AActor*> OutChildren;
+	GetConstraintWeldComponentRoot(Actor)->WeldGraph.MultiFind(Actor, OutChildren);
+
+	for (int i = 0; i < OutChildren.Num(); i++) {
+		RemoveWeld(Actor, OutChildren[i]);
+	}
+
+	// Look and see if anything was constrained to this. Move constraints.
+
+}
+
 bool UConstraintWeldComponent::IsDirectlyWeldedTo(AActor* Actor1, AActor* Actor2)
 {
 	if (GetConstraintWeldComponentRoot(Actor1)->WeldGraph.FindPair(Actor1, Actor2) || GetConstraintWeldComponentRoot(Actor1)->WeldGraph.FindPair(Actor2, Actor1)) {
@@ -226,34 +252,42 @@ void UConstraintWeldComponent::CombineConstraintWeldComponents(UConstraintWeldCo
 
 	bool bWasSimulating = AddingFrom->AttachedParentRoot->GetRootComponent()->IsSimulatingPhysics();
 
-	// Move old parent over first
-	if (AddingFrom->AttachedParentRoot) {
-		UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - CombineConstraintWeldComponents() Move old parent over first"));
-		AddingFrom->AttachedParentRoot->AttachToComponent(AttachedParentRoot->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true), "");
+	ACircuitActor* CircuitActorRoot = Cast<ACircuitActor>(AddingFrom->AttachedParentRoot);
 
-		//AddingFrom->AttachedParentRoot->WeldAttachmentReplication.AttachParent = AttachedParentRoot;
-		//AddingFrom->AttachedParentRoot->WeldAttachmentReplication.AttachComponent = AttachedParentRoot->GetRootComponent();
-		//AddingFrom->AttachedParentRoot->WeldAttachmentReplication.AttachSocket = AddingFrom->AttachedParentRoot->GetAttachParentSocketName();
-		//AddingFrom->AttachedParentRoot->WeldAttachmentReplication.LocationOffset = AddingFrom->AttachedParentRoot->GetRootComponent()->RelativeLocation;
-		//AddingFrom->AttachedParentRoot->WeldAttachmentReplication.RotationOffset = AddingFrom->AttachedParentRoot->GetRootComponent()->RelativeRotation;
-		//AddingFrom->AttachedParentRoot->WeldAttachmentReplication.RelativeScale3D = AddingFrom->AttachedParentRoot->GetRootComponent()->RelativeScale3D;
+	// Move old parent over first
+	if (CircuitActorRoot) {
+		UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - CombineConstraintWeldComponents() Move old parent over first"));
+		CircuitActorRoot->AttachToComponent(AttachedParentRoot->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true), "");
+		
+		CircuitActorRoot->CustomAttachmentReplication.AttachParent = AttachedParentRoot;
+		CircuitActorRoot->CustomAttachmentReplication.AttachComponent = AttachedParentRoot->GetRootComponent();
+		CircuitActorRoot->CustomAttachmentReplication.AttachSocket = CircuitActorRoot->GetAttachParentSocketName();
+		CircuitActorRoot->CustomAttachmentReplication.LocationOffset = CircuitActorRoot->GetRootComponent()->GetRelativeLocation();
+		CircuitActorRoot->CustomAttachmentReplication.RotationOffset = CircuitActorRoot->GetRootComponent()->GetRelativeRotation();
+		CircuitActorRoot->CustomAttachmentReplication.RelativeScale3D = CircuitActorRoot->GetRootComponent()->GetRelativeScale3D();
+
 		//AddingFrom->AttachedParentRoot->SetWeldManager(this);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - CombineConstraintWeldComponents() Pre-move"));
+	//UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - CombineConstraintWeldComponents() Pre-move"));
+
 	// @todo - have client do this automatically without all the replication
+	// Update actors that were attached to other WeldGraph to this component
 	for (TPair<AActor*, AActor*> pair : AddingFrom->WeldGraph)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - CombineConstraintWeldComponents() Move"));
 		//pair.Key->SetWeldManager(this);
 		if (pair.Key != AttachedParentRoot) {
+			UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - CombineConstraintWeldComponents() Move"));
+
+			ACircuitActor* PairCircuitActor = Cast<ACircuitActor>(pair.Key);
 			pair.Key->AttachToComponent(AttachedParentRoot->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true), "");
-			//pair.Key->WeldAttachmentReplication.AttachParent = AttachedParentRoot;
-			//pair.Key->WeldAttachmentReplication.AttachComponent = AttachedParentRoot->GetRootComponent();
-			//pair.Key->WeldAttachmentReplication.AttachSocket = pair.Key->GetAttachParentSocketName();
-			//pair.Key->WeldAttachmentReplication.LocationOffset = pair.Key->GetRootComponent()->RelativeLocation;
-			//pair.Key->WeldAttachmentReplication.RotationOffset = pair.Key->GetRootComponent()->RelativeRotation;
-			//pair.Key->WeldAttachmentReplication.RelativeScale3D = pair.Key->GetRootComponent()->RelativeScale3D;
+
+			PairCircuitActor->CustomAttachmentReplication.AttachParent = AttachedParentRoot;
+			PairCircuitActor->CustomAttachmentReplication.AttachComponent = AttachedParentRoot->GetRootComponent();
+			PairCircuitActor->CustomAttachmentReplication.AttachSocket = pair.Key->GetAttachParentSocketName();
+			PairCircuitActor->CustomAttachmentReplication.LocationOffset = pair.Key->GetRootComponent()->GetRelativeLocation();
+			PairCircuitActor->CustomAttachmentReplication.RotationOffset = pair.Key->GetRootComponent()->GetRelativeRotation();
+			PairCircuitActor->CustomAttachmentReplication.RelativeScale3D = pair.Key->GetRootComponent()->GetRelativeScale3D();
 		}
 	}
 
@@ -341,6 +375,9 @@ void UConstraintWeldComponent::RerootGraph()
 		}
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Debug
 
 void UConstraintWeldComponent::DebugDrawWelds() {
 	if (WeldGraph.Num() < 1) {
