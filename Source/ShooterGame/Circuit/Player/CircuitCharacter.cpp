@@ -2,10 +2,11 @@
 
 #include "ShooterGame.h"
 #include "Public/Weapons/ShooterWeapon.h"
+#include "Circuit/Player/CircuitCharacterMovement.h"
 #include "Circuit/Player/CircuitCharacter.h"
 
 ACircuitCharacter::ACircuitCharacter(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UShooterCharacterMovement>(ACharacter::CharacterMovementComponentName))
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UCircuitCharacterMovement>(ACharacter::CharacterMovementComponentName))
 {
 	MaxUseDistance = 2500.0f;
 }
@@ -345,6 +346,60 @@ void ACircuitCharacter::SetOutlineColor(EStencilColor OutlineColor, AActor* high
 				Cast<UStaticMeshComponent>(Comp)->SetCustomDepthStencilValue((int32)OutlineColor);
 				Cast<UStaticMeshComponent>(Comp)->SetRenderCustomDepth(true);
 			}
+		}
+	}
+}
+
+void ACircuitCharacter::OnRep_ReplicatedBasedMovement()
+{
+	// If this is us, then use this.
+	if (Controller) {
+		Super::OnRep_ReplicatedBasedMovement();
+		return;
+	}
+
+	//UE_LOG(LogTemp, Warning, TEXT("[%f] OnRep_ReplicatedBasedMovement - HERE"), GetWorld()->GetRealTimeSeconds());
+
+	if (GetMovementComponent() && GetWorld()->GetGameState()) {
+		//Super::OnRep_ReplicatedBasedMovement();
+		if (ReplicatedBasedMovement.HasRelativeLocation()) {
+			if (ReplicatedBasedMovement.MovementBase != nullptr) {
+				//UE_LOG(LogTemp, Warning, TEXT("[%f] OnRep_ReplicatedBasedMovement - Location: %s Base: %s"), GetWorld()->GetRealTimeSeconds(), *ReplicatedBasedMovement.Location.ToCompactString(), *ReplicatedBasedMovement.MovementBase->GetName());
+			}
+			else {
+				//UE_LOG(LogTemp, Warning, TEXT("[%f] OnRep_ReplicatedBasedMovement - Location: %s Base: None"), GetWorld()->GetRealTimeSeconds(), *ReplicatedBasedMovement.Location.ToCompactString());
+			}
+			Cast<UCircuitCharacterMovement>(GetMovementComponent())->AddToMovementBuffer(GetReplicatedBasedMovement().Location, GetReplicatedBasedMovement().Rotation.Quaternion(), GetReplicatedMovement().LinearVelocity, GetReplicatedBasedMovement().MovementBase, GetReplicatedBasedMovement().BoneName, (GetReplicatedBasedMovement().MovementBase != nullptr), GetReplicatedBasedMovement().HasRelativeLocation(), GetReplicatedMovementMode(), GetWorld()->GetTimeSeconds(), GetReplicatedBasedMovement().bRelativeRotation);
+		}
+	}
+}
+
+void ACircuitCharacter::OnRep_ReplicatedMovement()
+{
+	// If this is us, then use this.
+	if (Controller) {
+		Super::OnRep_ReplicatedMovement();
+		return;
+	}
+
+	//UE_LOG(LogTemp, Warning, TEXT("[%f] OnRep_ReplicatedMovement - HERE"), GetWorld()->GetRealTimeSeconds());
+
+	if (GetMovementComponent() && GetWorld()->GetGameState()) {
+		if (GetMovementBase()) {
+			if (ReplicatedBasedMovement.MovementBase != nullptr) {
+				//UE_LOG(LogTemp, Warning, TEXT("[%f] OnRep_ReplicatedMovement - Location: %s ReplicatedMovementBase: %s"), GetWorld()->GetRealTimeSeconds(), *ReplicatedMovement.Location.ToCompactString(), *ReplicatedBasedMovement.MovementBase->GetName());
+			}
+			else {
+				if (GetMovementBase() != nullptr) {
+					//UE_LOG(LogTemp, Warning, TEXT("[%f] OnRep_ReplicatedMovement - Location: %s Base: %s"), GetWorld()->GetRealTimeSeconds(), *ReplicatedMovement.Location.ToCompactString(), *GetMovementBase()->GetName());
+				}
+			}
+		}
+		else {
+		}
+		
+		if (!GetReplicatedBasedMovement().HasRelativeLocation()) {
+			Cast<UCircuitCharacterMovement>(GetMovementComponent())->AddToMovementBuffer(GetReplicatedMovement().Location, GetReplicatedMovement().Rotation.Quaternion(), GetReplicatedMovement().LinearVelocity, NULL, "", false, false, GetReplicatedMovementMode(), GetWorld()->GetTimeSeconds(), false); //FIX ME - TimeStamp is wrong.
 		}
 	}
 }

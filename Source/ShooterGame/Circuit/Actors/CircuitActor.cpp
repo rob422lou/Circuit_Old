@@ -416,7 +416,7 @@ void ACircuitActor::ReplicateInterpolationMovement()
 		FMath::Abs(GetActorLocation().Z - LastWorldLocation.Z) < 127 &&
 		(GetWorld()->GetRealTimeSeconds() - LastWorldUpdateTime) < (GetNetworkSendInterval() * 4)) {
 
-		UE_LOG(LogTemp, Warning, TEXT("[%f] [SERVER] ACircuitActor ReplicateInterpolationMovement() 1"), GetWorld()->GetRealTimeSeconds());
+		//UE_LOG(LogTemp, Warning, TEXT("[%f] [SERVER] ACircuitActor ReplicateInterpolationMovement() 1"), GetWorld()->GetRealTimeSeconds());
 
 		ReplicatedInterpolationMovement = FLinearInterpolation(GetActorLocation() - LastWorldLocation, GetActorQuat(), GetWorld()->GetRealTimeSeconds(), true);
 
@@ -429,7 +429,7 @@ void ACircuitActor::ReplicateInterpolationMovement()
 		LastWorldLocation = GetActorLocation();
 		LastWorldUpdateTime = GetWorld()->GetRealTimeSeconds();
 		ReplicatedInterpolationMovement = FLinearInterpolation(GetActorLocation(), GetActorQuat(), GetWorld()->GetRealTimeSeconds(), false);
-		UE_LOG(LogTemp, Warning, TEXT("[%f] [SERVER] ACircuitActor ReplicateInterpolationMovement() %f"), GetWorld()->GetRealTimeSeconds(), ReplicatedInterpolationMovement.TimeStamp);
+		//UE_LOG(LogTemp, Warning, TEXT("[%f] [SERVER] ACircuitActor ReplicateInterpolationMovement() %f"), GetWorld()->GetRealTimeSeconds(), ReplicatedInterpolationMovement.TimeStamp);
 
 		Multi_UpdateInterpMovement(ReplicatedInterpolationMovement);
 
@@ -451,7 +451,7 @@ void ACircuitActor::Client_UpdateReplicatedInterpMovement() {
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Client_UpdateReplicatedInterpMovement() MovementBuffer.Num() %d %f"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num(), ReplicatedInterpolationMovement.TimeStamp);
+	//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Client_UpdateReplicatedInterpMovement() MovementBuffer.Num() %d %f"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num(), ReplicatedInterpolationMovement.TimeStamp);
 
 	// Add initial location first so we have 2 points to interpolate between
 	if (MovementBuffer.Num() == 0) {
@@ -499,7 +499,7 @@ void ACircuitActor::Multi_UpdateInterpMovement_Implementation(FLinearInterpolati
 	if (GetNetMode() == ENetMode::NM_Client) {
 		ReplicatedInterpolationMovement = newRep;
 		Client_UpdateReplicatedInterpMovement();
-		UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Multi_UpdateInterpMovement_Implementation() %f"), GetWorld()->GetRealTimeSeconds(), newRep.TimeStamp);
+		//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Multi_UpdateInterpMovement_Implementation() %f"), GetWorld()->GetRealTimeSeconds(), newRep.TimeStamp);
 	}
 }
 

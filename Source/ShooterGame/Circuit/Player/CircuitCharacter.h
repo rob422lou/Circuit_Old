@@ -105,6 +105,13 @@ public:
 	
 	//////////////////////////////////////////////////////////////////////////
 	// Renderer Functions
+
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Rendering")
 	void SetOutlineColor(EStencilColor OutlineColor, AActor* highlightActor);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Movement
+
+	virtual void OnRep_ReplicatedBasedMovement() override;
+	virtual void OnRep_ReplicatedMovement() override;
 };
