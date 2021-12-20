@@ -41,9 +41,51 @@ void UConstraintWeldComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Constraints
+
+bool UConstraintWeldComponent::AddConstraint(UPrimitiveComponent* Comp1, UPrimitiveComponent* Comp2, FName Bone1, FName Bone2) {
+	if (Comp1 != nullptr && Comp2 != nullptr && Comp1 != Comp2) {
+		if (!DoesConstraintExist(Comp1, Comp2, Bone1, Bone2)) {
+			UCircuitConstraintComponent* newComp = NewObject<UCircuitConstraintComponent>(UCircuitConstraintComponent::StaticClass(), FName("Constraint-1"));
+			if (newComp)
+			{
+				newComp->RegisterComponent();
+				newComp->AttachToComponent(this, FAttachmentTransformRules::KeepWorldTransform);
+			}
+			ConstraintGraph.Add(Comp1, newComp);
+			ConstraintGraph.Add(Comp2, newComp);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UConstraintWeldComponent::DoesConstraintExist(UPrimitiveComponent* Comp1, UPrimitiveComponent* Comp2, FName Bone1, FName Bone2) {
+	FName bTemp1;
+	FName bTemp2;
+	UPrimitiveComponent* compA;
+	UPrimitiveComponent* compB;
+
+	for (TPair<UPrimitiveComponent*, UCircuitConstraintComponent*> It : ConstraintGraph)
+	{
+		if (It.Key == Comp1) {
+			It.Value->GetConstrainedComponents(compA, bTemp1, compB, bTemp2);
+			if ((compA == Comp1 && compB == Comp2 && bTemp1 == Bone1 && bTemp2 == Bone2) ||
+				(compA == Comp2 && compB == Comp1 && bTemp2 == Bone1 && bTemp1 == Bone2)) {
+
+				// @TODO - Update existing constraint
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Weld Functions
 
-bool UConstraintWeldComponent::AddWeld(AActor* Actor1, AActor* Actor2)
+bool UConstraintWeldComponent::AddWeld(AActor* Actor1, AActor* Actor2, FName Bone1, FName Bone2)
 {
 	// If either don't exist
 	if (!Actor1 || !Actor2 || Actor1 == Actor2) {
@@ -57,6 +99,13 @@ bool UConstraintWeldComponent::AddWeld(AActor* Actor1, AActor* Actor2)
 		return false;
 	}
 
+	// Check to see if it's a skeletal mesh
+	USkeletalMeshComponent* skComp1 = GetSkeletalMeshComponent(Actor1);
+	USkeletalMeshComponent* skComp2 = GetSkeletalMeshComponent(Actor2);
+	if (skComp1 != nullptr || skComp2 != nullptr) {
+		AddConstraint(skComp1, skComp2, Bone1, Bone2);
+	}
+	
 	// If either don't have the component (This is done in the weld tool but just in case)
 	if (!Actor1->FindComponentByClass<UConstraintWeldComponent>()) {
 		Actor1->AddComponentByClass(UConstraintWeldComponent::StaticClass(), false, FTransform::Identity, false);
@@ -110,7 +159,7 @@ bool UConstraintWeldComponent::AddWeld(AActor* Actor1, AActor* Actor2)
 	return true;
 }
 
-bool UConstraintWeldComponent::RemoveWeld(AActor* KeyActor, AActor* ValueActor)
+bool UConstraintWeldComponent::RemoveWeld(AActor* KeyActor, AActor* ValueActor, FName Bone1, FName Bone2)
 {
 	// Value actor containts rootComp as it's calling this function
 	UConstraintWeldComponent* rootComp = GetConstraintWeldComponent(AttachedParentRoot);
@@ -213,7 +262,7 @@ void UConstraintWeldComponent::RemoveAllWeldsFrom(AActor* Actor)
 	GetConstraintWeldComponentRoot(Actor)->WeldGraph.MultiFind(Actor, OutChildren);
 
 	for (int i = 0; i < OutChildren.Num(); i++) {
-		RemoveWeld(Actor, OutChildren[i]);
+		RemoveWeld(Actor, OutChildren[i], FName(""), FName(""));
 	}
 
 	// Look and see if anything was constrained to this. Move constraints.
@@ -323,6 +372,10 @@ UConstraintWeldComponent* UConstraintWeldComponent::GetConstraintWeldComponentRo
 		return Actor->FindComponentByClass<UConstraintWeldComponent>()->AttachedParentRoot->FindComponentByClass<UConstraintWeldComponent>();
 	}
 	return Actor->FindComponentByClass<UConstraintWeldComponent>();
+}
+
+USkeletalMeshComponent* UConstraintWeldComponent::GetSkeletalMeshComponent(AActor* Actor1) {
+	return Actor1->FindComponentByClass<USkeletalMeshComponent>();
 }
 
 bool UConstraintWeldComponent::DFS(AActor* V, AActor* SearchingFor, TArray<AActor*>& Visited)

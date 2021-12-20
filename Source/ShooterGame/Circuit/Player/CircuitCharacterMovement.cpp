@@ -986,8 +986,9 @@ void UCircuitCharacterMovement::ReplicateMoveToServer(float DeltaTime, const FVe
 		//#endif
 		if (bSendServerMove)
 		{
+			const FSavedMove_Character* PendingMove = ClientData->PendingMove.Get();
 			//SCOPE_CYCLE_COUNTER(STAT_CharacterMovementCallServerMove);
-			CallServerMove(NewMove, OldMove.Get());
+			CallServerMovePacked(NewMove, PendingMove, OldMove.Get());
 		}
 	}
 

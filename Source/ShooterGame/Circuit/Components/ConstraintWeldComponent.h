@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Circuit/Components/CircuitConstraintComponent.h"
 #include "Components/SceneComponent.h"
 #include "ConstraintWeldComponent.generated.h"
 
@@ -24,19 +25,28 @@ protected:
 
 	//<Child, Parent>. Child stores what it thinks it's attached to. Is actually attached to Root.
 	TMultiMap<AActor*, AActor*> WeldGraph;
+	TMultiMap<UPrimitiveComponent*, UCircuitConstraintComponent*> ConstraintGraph;
 
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+
+	//////////////////////////////////////////////////////////////////////////
+	// Constraints
+	 
+	bool AddConstraint(UPrimitiveComponent* Comp1, UPrimitiveComponent* Comp2, FName Bone1, FName Bone2);
+
+	bool DoesConstraintExist(UPrimitiveComponent* Comp1, UPrimitiveComponent* Comp2, FName Bone1, FName Bone2);
+
 	//////////////////////////////////////////////////////////////////////////
 	// Weld Functions
 
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
-	bool AddWeld(AActor* Actor1, AActor* Actor2);
+	bool AddWeld(AActor* Actor1, AActor* Actor2, FName Bone1, FName Bone2);
 
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
-	bool RemoveWeld(AActor* KeyActor, AActor* ValueActor);
+	bool RemoveWeld(AActor* KeyActor, AActor* ValueActor, FName Bone1, FName Bone2);
 
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
 	void RemoveAllWeldsFrom(AActor* Actor);
@@ -56,6 +66,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
 	UConstraintWeldComponent* GetConstraintWeldComponent(AActor* Actor);
 	UConstraintWeldComponent* GetConstraintWeldComponentRoot(AActor* Actor);
+
+	USkeletalMeshComponent* GetSkeletalMeshComponent(AActor* Actor1);
 
 	void RerootGraph();
 
