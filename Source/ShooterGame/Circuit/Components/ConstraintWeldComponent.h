@@ -21,10 +21,10 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
-	AActor* AttachedParentRoot;
+	USceneComponent* AttachedParentRoot;
 
 	//<Child, Parent>. Child stores what it thinks it's attached to. Is actually attached to Root.
-	TMultiMap<AActor*, AActor*> WeldGraph;
+	TMultiMap<UPrimitiveComponent*, UPrimitiveComponent*> WeldGraph;
 	TMultiMap<UPrimitiveComponent*, UCircuitConstraintComponent*> ConstraintGraph;
 
 public:	
@@ -43,31 +43,31 @@ public:
 	// Weld Functions
 
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
-	bool AddWeld(AActor* Actor1, AActor* Actor2, FName Bone1, FName Bone2);
+	bool AddWeld(UPrimitiveComponent* Comp1, UPrimitiveComponent* Comp2, FName Bone1, FName Bone2);
 
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
-	bool RemoveWeld(AActor* KeyActor, AActor* ValueActor, FName Bone1, FName Bone2);
+	bool RemoveWeld(UPrimitiveComponent* KeyComp, UPrimitiveComponent* ValueComp, FName Bone1, FName Bone2);
 
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
-	void RemoveAllWeldsFrom(AActor* Actor);
+	void RemoveAllWeldsFrom(UPrimitiveComponent* Comp);
 
-	bool IsDirectlyWeldedTo(AActor* Actor1, AActor* Actor2);
+	bool IsDirectlyWeldedTo(UPrimitiveComponent* Comp1, UPrimitiveComponent* Comp2, FName Bone1, FName Bone2);
 
 	// Looks for an indirect connection between 2 actors using a DFS algorithm
-	bool IsIndirectlyWeldedTo(AActor* Actor1, AActor* Actor2);
+	bool IsIndirectlyWeldedTo(UPrimitiveComponent* Comp1, UPrimitiveComponent* Comp2, FName Bone1, FName Bone2);
 
 	///////////////////////////////////////////////////
 	// Helper Functions
 
 	void CombineConstraintWeldComponents(UConstraintWeldComponent* AddingFrom);
 
-	bool DFS(AActor* V, AActor* SearchingFor, TArray<AActor*>& Visited);
+	bool DFS(UPrimitiveComponent* V, UPrimitiveComponent* SearchingFor, TArray<UPrimitiveComponent*>& Visited);
 
 	UFUNCTION(BlueprintCallable, Category = "Circuit|Constraint Weld")
-	UConstraintWeldComponent* GetConstraintWeldComponent(AActor* Actor);
-	UConstraintWeldComponent* GetConstraintWeldComponentRoot(AActor* Actor);
+	UConstraintWeldComponent* GetConstraintWeldComponent(USceneComponent* Comp);
+	UConstraintWeldComponent* GetConstraintWeldComponentRoot(USceneComponent* Comp);
 
-	USkeletalMeshComponent* GetSkeletalMeshComponent(AActor* Actor1);
+	USkeletalMeshComponent* GetSkeletalMeshComponent(UPrimitiveComponent* Comp);
 
 	void RerootGraph();
 

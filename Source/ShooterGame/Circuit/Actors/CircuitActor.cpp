@@ -256,7 +256,7 @@ void ACircuitActor::OnRep_AttachmentReplication()
 
 void ACircuitActor::OnRep_CustomAttachmentReplication()
 {
-	if (CustomAttachmentReplication.AttachParent)
+	if (CustomAttachmentReplication.AttachComponent)
 	{
 		if (RootComponent)
 		{
@@ -266,27 +266,26 @@ void ACircuitActor::OnRep_CustomAttachmentReplication()
 			{
 				//UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() AttachParentComponent %f"), CustomAttachmentReplication.LocationOffset.X);
 				//MovementBuffer.Empty();
-				
-				AttachToComponent(AttachParentComponent, FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true), CustomAttachmentReplication.AttachSocket);
+				RootComponent->AttachToComponent(AttachParentComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, true), CustomAttachmentReplication.AttachSocket);
 				RootComponent->SetRelativeLocation(CustomAttachmentReplication.LocationOffset);
 				RootComponent->SetRelativeRotation(CustomAttachmentReplication.RotationOffset);
 				RootComponent->SetRelativeScale3D(CustomAttachmentReplication.RelativeScale3D);
 
 				// @TODO - this is meant as an optimization but it's not working
 				if (!bUsesCustomNetworking) {
-					UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() 1"));
+					//UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() 1"));
 					TArray<UPrimitiveComponent*> Components;
 					GetComponents<UPrimitiveComponent>(Components);
 					
 					if (Components.Num() > 0) {
-						UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() 2"));
+						//UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() 2"));
 						if (Components[0] != nullptr) {
 							for (size_t i = 0; i < Components.Num(); i++)
 							{
 								UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() %s"), *Components[i]->GetName());
 								Components[i]->SetSimulatePhysics(false);
 								if (Components[i]->IsSimulatingPhysics()) {
-									UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() HERE"));
+									UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() IsSimulatingPhysics %s"), *Components[i]->GetName());
 								}
 							}
 						}
@@ -384,7 +383,7 @@ void ACircuitActor::OnRep_ReplicatedInterpolationMovement()
 
 void ACircuitActor::ReplicateInterpolationMovement()
 {
-	if (CustomAttachmentReplication.AttachParent != nullptr) {
+	if (CustomAttachmentReplication.AttachComponent != nullptr || !GetUsesCustomNetworking()) {
 		return;
 	}
 	//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor ReplicateInterpolationMovement() HERE 0"), GetWorld()->GetRealTimeSeconds());
@@ -441,7 +440,7 @@ void ACircuitActor::ReplicateInterpolationMovement()
 // New Replication Code 12/17/2021 (Organize after into the above section this code has been proven)
 
 void ACircuitActor::Client_UpdateReplicatedInterpMovement() {
-	if (CustomAttachmentReplication.AttachParent != nullptr) {
+	if (CustomAttachmentReplication.AttachComponent != nullptr) {
 		return;
 	}
 
@@ -511,7 +510,7 @@ void ACircuitActor::K2_DestroyActor()
 	UConstraintWeldComponent* conWeldComp = FindComponentByClass<UConstraintWeldComponent>();
 	
 	// Unweld all
-	conWeldComp->RemoveAllWeldsFrom(this);
+	//conWeldComp->RemoveAllWeldsFrom(this);
 
 	// Unconstrain all
 
@@ -577,12 +576,14 @@ ACircuitActor* ACircuitActor::GetTopAttachedParent(ACircuitActor* Child)
 // Debug
 
 void ACircuitActor::DebugDrawWelds() {
-	return;
 	ACircuitActor* top = GetTopAttachedParent(this);
-	if (top == nullptr) {
+	if (top == nullptr || top == this) {
 		return;
 	}
-	DrawDebugBox(GetWorld(), top->GetActorLocation(), FVector(55.0f, 55.0f, 55.0f), FColor::Blue, false, -1.0f, 0, 2.0f);
 
-	DrawDebugDirectionalArrow(GetWorld(), GetActorLocation(), top->GetActorLocation(), 15.0f, FColor::Cyan, false, -1.0f, 0, 1);
+	if (Cast<UPrimitiveComponent>(RootComponent) && Cast<UPrimitiveComponent>(RootComponent)->BodyInstance.WeldParent != nullptr) {
+		DrawDebugBox(GetWorld(), top->GetActorLocation(), FVector(55.0f, 55.0f, 55.0f), FColor::Blue, false, -1.0f, 0, 2.0f);
+
+		DrawDebugDirectionalArrow(GetWorld(), GetActorLocation(), top->GetActorLocation(), 15.0f, FColor::Cyan, false, -1.0f, 0, 1);
+	}
 }
