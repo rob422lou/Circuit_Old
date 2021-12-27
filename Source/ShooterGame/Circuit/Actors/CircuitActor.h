@@ -66,6 +66,9 @@ public:
 	UFUNCTION()
 	virtual void OnRep_CustomAttachmentReplication();
 
+	// This only exists for non-custom networking debugging
+	virtual void OnRep_ReplicatedMovement();
+
 	//UFUNCTION()
 	//virtual void OnRep_ReplicatedInterpolationMovement();
 
@@ -76,9 +79,18 @@ public:
 	void Multi_UpdateInterpMovement(FLinearInterpolation newRep);
 	bool Multi_UpdateInterpMovement_Validate(FLinearInterpolation newRep);
 	void Multi_UpdateInterpMovement_Implementation(FLinearInterpolation newRep);
-
-
 	void Client_UpdateReplicatedInterpMovement();
+
+	// For skeletal mesh bone replication
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TArray<FName> BonesToRep;
+
+	// For skeletal mesh bone replication
+	UFUNCTION(NetMulticast, Reliable)
+	void Multi_UpdateSkeleMovement(FRepSkeleMovement newRep);
+	bool Multi_UpdateSkeleMovement_Validate(FRepSkeleMovement newRep);
+	void Multi_UpdateSkeleMovement_Implementation(FRepSkeleMovement newRep);
+	void Client_UpdateReplicatedSkeleMovement(FRepSkeleMovement newRep);
 
 //////////////////////////////////////////////////////////////////////////
 // Helpers

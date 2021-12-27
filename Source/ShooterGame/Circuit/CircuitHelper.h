@@ -11,17 +11,17 @@ struct FActorInterpolationBuffer
 {
 	GENERATED_USTRUCT_BODY()
 
-		UPROPERTY(Transient)
-		FVector Location;
+	UPROPERTY(Transient)
+	FVector Location;
 
 	UPROPERTY(Transient)
-		FQuat Quat;
+	FQuat Quat;
 
 	UPROPERTY(Transient)
-		float TimeStamp;
+	float TimeStamp;
 
 	UPROPERTY(Transient)
-		bool bIsRelativeLocation;
+	bool bIsRelativeLocation;
 
 	FActorInterpolationBuffer() {}
 
@@ -194,6 +194,29 @@ struct FInterpolationBuffer
 		bBaseRelativePosition = bNewBaseRelativePosition;
 		ServerMovementMode = NewServerMovementMode;
 		bRelativeRotation = bNewRelativeRotation;
+	}
+};
+
+USTRUCT()
+struct FRepSkeleMovement
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(Transient)
+	FName Bone;
+
+	UPROPERTY(Transient)
+	FVector Location;
+
+	UPROPERTY(Transient)
+	FQuat Quat;
+
+	FRepSkeleMovement() {}
+
+	FRepSkeleMovement(FVector NewLocation, FQuat NewQuat, FName NewBone) {
+		Bone = NewBone;
+		Location = NewLocation;
+		Quat = NewQuat;
 	}
 };
 

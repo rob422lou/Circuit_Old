@@ -4,6 +4,7 @@
 #include "Circuit/Components/ConstraintWeldComponent.h"
 #include "Circuit/Online/CircuitGameState.h"
 #include "Circuit/Actors/CircuitActor.h"
+#include "Components/PoseableMeshComponent.h"
 
 // Sets default values
 ACircuitActor::ACircuitActor()
@@ -61,15 +62,28 @@ void ACircuitActor::BeginPlay()
 			// OLD - Check 	uint8 bReplicates:1; for actorcomponents. Also turn off physics simulation for anything that can simulate.
 			//TArray<UActorComponent*> Components2;
 			//GetComponents<UActorComponent>(Components2);
-
-			// Turn off physics simulation for all primitive components (mainly static meshes and skeletal meshes)
-			TArray<UPrimitiveComponent*> Components;
-			GetComponents<UPrimitiveComponent>(Components);
-			if (Components.Num() > 0) {
-				UPrimitiveComponent* PrimitiveComponent = Components[0];
-				if (PrimitiveComponent != nullptr) {
-					PrimitiveComponent->SetSimulatePhysics(false);
-					//PrimitiveComponent->BodyInstance.bSimulatePhysics = false;
+			
+			USkeletalMeshComponent* skeleMeshComp = Cast<USkeletalMeshComponent>(RootComponent);
+			if (skeleMeshComp != nullptr) {
+				skeleMeshComp->SetSimulatePhysics(true);
+				skeleMeshComp->SetEnableGravity(false);
+				for (size_t i = 0; i < skeleMeshComp->GetNumBones(); i++)
+				{
+					if (skeleMeshComp->GetBodyInstance(skeleMeshComp->GetBoneName(i)) != nullptr) {
+						//skeleMeshComp->SetEnableBodyGravity(false, skeleMeshComp->GetBoneName(i));
+						UE_LOG(LogTemp, Warning, TEXT("[%f] ACircuitActor BeginPlay() USkeletalMeshComponent %s"), GetWorld()->GetRealTimeSeconds(), *skeleMeshComp->GetBoneName(i).ToString());
+					}
+				}
+			}
+			else {
+				// Turn off physics simulation for all primitive components (mainly static meshes and skeletal meshes)
+				TArray<UPrimitiveComponent*> Components;
+				GetComponents<UPrimitiveComponent>(Components);
+				if (Components.Num() > 0) {
+					UPrimitiveComponent* PrimitiveComponent = Components[0];
+					if (PrimitiveComponent != nullptr) {
+						PrimitiveComponent->SetSimulatePhysics(false);
+					}
 				}
 			}
 
@@ -79,6 +93,15 @@ void ACircuitActor::BeginPlay()
 		}
 		//Is a server, needs to run physics AND send interpolation updates periodically.
 		else if (GetNetMode() == ENetMode::NM_ListenServer || GetNetMode() == ENetMode::NM_DedicatedServer) {
+			USkeletalMeshComponent* skeleMeshComp = Cast<USkeletalMeshComponent>(RootComponent);
+			if (skeleMeshComp != nullptr) {
+				for (size_t i = 0; i < skeleMeshComp->GetNumBones(); i++)
+				{	
+					BonesToRep.Add(skeleMeshComp->GetBoneName(i));
+				}
+
+				ServerSnapshotTime = ServerSnapshotTime * 100.0f;
+			}
 			//LastUpdateTime = GetWorld()->GetRealTimeSeconds();
 		}
 	}
@@ -116,7 +139,24 @@ void ACircuitActor::Tick(float DeltaTime)
 		}
 
 		if ((LastUpdateTime + GetNetworkSendInterval()) < GetWorld()->GetRealTimeSeconds()) {
-			ReplicateInterpolationMovement();
+			USkeletalMeshComponent* test = Cast<USkeletalMeshComponent>(RootComponent);
+			if (test != nullptr) {
+				for (size_t i = 0; i < BonesToRep.Num(); i++)
+				{
+					if (test->GetBodyInstance(BonesToRep[i]) != nullptr) {
+						//UE_LOG(LogTemp, Warning, TEXT("[%f] ACircuitActor BeginPlay() USkeletalMeshComponent"), GetWorld()->GetRealTimeSeconds());
+						//test->GetBodyInstance(BonesToRep[i])->SetEnableGravity(false);
+						FRepSkeleMovement temp;
+						temp.Bone = BonesToRep[i];
+						temp.Location = test->GetBodyInstance(BonesToRep[i])->GetUnrealWorldTransform().GetLocation();
+						temp.Quat = test->GetBodyInstance(BonesToRep[i])->GetUnrealWorldTransform().GetRotation();
+						Multi_UpdateSkeleMovement(temp);
+					}
+				}
+			}
+			else {
+				ReplicateInterpolationMovement();
+			}
 			LastUpdateTime = GetWorld()->GetRealTimeSeconds();
 		}
 
@@ -125,6 +165,11 @@ void ACircuitActor::Tick(float DeltaTime)
 
 	// *******CLIENTS ONLY BEYOND THIS POINT*******\
 	
+   	USkeletalMeshComponent* test = Cast<USkeletalMeshComponent>(RootComponent);
+	if (test != nullptr) {
+		return;
+	}
+
 	// No need to do anything as client
 	if (MovementBuffer.Num() == 0 || InitialMovementTime <= 0.0f) {
 		return;
@@ -133,7 +178,7 @@ void ACircuitActor::Tick(float DeltaTime)
 	CurrentMovementTime += DeltaTime;
 
 	// @todo - probably buggy
-// If our buffer is too big, speed up CurrentMovementTime slightly
+	// If our buffer is too big, speed up CurrentMovementTime slightly
 	if (GetCurrentBufferedTime() > (GetClientBufferTime() + GetNetworkSendInterval() + 0.01f)) {
 		const float MaxTimeChange = GetNetworkSendInterval() * 0.15;
 		float CurrentDelta = MovementBuffer[MovementBuffer.Num() - 1].TimeStamp - (CurrentMovementTime - GetClientBufferTime());
@@ -141,7 +186,7 @@ void ACircuitActor::Tick(float DeltaTime)
 		float TimeChange = FMath::Clamp((GetCurrentBufferedTime() - GetClientBufferTime()) / (GetClientBufferTime() * 25.0f), -1.0f * MaxTimeChange, MaxTimeChange);
 		CurrentMovementTime += TimeChange;
 
-		//UE_LOG(LogTemp, Warning, TEXT("[%f] PerdixActor - Tick() MovementBuffer.Num():	%i TimeChange:	%f	GetCurrentBufferedTime():	%f"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num(), TimeChange, GetCurrentBufferedTime());
+		//UE_LOG(LogTemp, Warning, TEXT("[%f] CircuitActor - Tick() MovementBuffer.Num():	%i TimeChange:	%f	GetCurrentBufferedTime():	%f"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num(), TimeChange, GetCurrentBufferedTime());
 	}
 
 	// Still buffering
@@ -168,9 +213,13 @@ void ACircuitActor::Tick(float DeltaTime)
 	if (ServerDelta > SMALL_NUMBER)
 	{
 		// Calculate lerp percent
-		float RemainingTime = MovementBuffer[1].TimeStamp - (CurrentMovementTime - GetClientBufferTime()); // We need to subtract ClientBufferTime otherwise CurrentMovementTime will be in real time, not in past buffered time.
+		float RemainingTime = FMath::Clamp(MovementBuffer[1].TimeStamp - (CurrentMovementTime - GetClientBufferTime()), 0.0f, 10.0f); // We need to subtract ClientBufferTime otherwise CurrentMovementTime will be in real time, not in past buffered time.
 		float CurrentSmoothTime = ServerDelta - RemainingTime;
 		LerpPercent = FMath::Clamp(CurrentSmoothTime / ServerDelta, 0.0f, LerpLimit);
+
+		if (LerpPercent > 1.0f) {
+			UE_LOG(LogTemp, Error, TEXT("[%f] CircuitActor - Tick() First LerpPercent calculation is too large:  %i %f %f %f %f"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num(), ServerDelta, MovementBuffer[1].TimeStamp, CurrentMovementTime, GetClientBufferTime());
+		}
 	}
 	else {
 
@@ -203,9 +252,13 @@ void ACircuitActor::Tick(float DeltaTime)
 			if (ServerDelta > SMALL_NUMBER)
 			{
 				// Calculate lerp percent
-				float RemainingTime = MovementBuffer[1].TimeStamp - (CurrentMovementTime - GetClientBufferTime()); // We need to subtract ClientBufferTime otherwise CurrentMovementTime will be in real time, not in past buffered time.
+				float RemainingTime = FMath::Clamp(MovementBuffer[1].TimeStamp - (CurrentMovementTime - GetClientBufferTime()), 0.0f, 10.0f); // We need to subtract ClientBufferTime otherwise CurrentMovementTime will be in real time, not in past buffered time.
 				float CurrentSmoothTime = ServerDelta - RemainingTime;
 				LerpPercent = FMath::Clamp(CurrentSmoothTime / ServerDelta, 0.0f, 1.15f);
+
+				if (LerpPercent > 1.0f) {
+					UE_LOG(LogTemp, Error, TEXT("[%f] CircuitActor - Tick() Second LerpPercent calculation is too large: %f %f %f %f"), GetWorld()->GetRealTimeSeconds(), LerpPercent, CurrentSmoothTime, ServerDelta, RemainingTime);
+				}
 			}
 			else {
 				// No more moves to make
@@ -214,7 +267,7 @@ void ACircuitActor::Tick(float DeltaTime)
 
 			// @todo - replace with while loop (?)
 			if (LerpPercent > 1.0f) {
-				UE_LOG(LogTemp, Error, TEXT("[%f] CircuitActor - Tick() Second LerpPercent calculation is too large: %f"), GetWorld()->GetRealTimeSeconds(), LerpPercent);
+				//UE_LOG(LogTemp, Error, TEXT("[%f] CircuitActor - Tick() Third LerpPercent calculation is too large: %f"), GetWorld()->GetRealTimeSeconds(), LerpPercent);
 			}
 
 			SetActorLocationAndRotation(FMath::LerpStable(MovementBuffer[0].Location, MovementBuffer[1].Location, LerpPercent),
@@ -250,12 +303,13 @@ void ACircuitActor::Tick(float DeltaTime)
 void ACircuitActor::OnRep_AttachmentReplication()
 {
 	if (!GetUsesCustomNetworking()) {
-		//Super::OnRep_AttachmentReplication();
+		Super::OnRep_AttachmentReplication();
 	}
 }
 
 void ACircuitActor::OnRep_CustomAttachmentReplication()
 {
+	//OnRep_ReplicatedMovement();
 	if (CustomAttachmentReplication.AttachComponent)
 	{
 		if (RootComponent)
@@ -266,13 +320,16 @@ void ACircuitActor::OnRep_CustomAttachmentReplication()
 			{
 				//UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() AttachParentComponent %f"), CustomAttachmentReplication.LocationOffset.X);
 				//MovementBuffer.Empty();
-				RootComponent->AttachToComponent(AttachParentComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, true), CustomAttachmentReplication.AttachSocket);
+				 
+				RootComponent->AttachToComponent(AttachParentComponent, FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true), CustomAttachmentReplication.AttachSocket);
+				Cast<UPrimitiveComponent>(RootComponent)->WeldToImplementation(AttachParentComponent, "", true);
+				
 				RootComponent->SetRelativeLocation(CustomAttachmentReplication.LocationOffset);
 				RootComponent->SetRelativeRotation(CustomAttachmentReplication.RotationOffset);
 				RootComponent->SetRelativeScale3D(CustomAttachmentReplication.RelativeScale3D);
 
 				// @TODO - this is meant as an optimization but it's not working
-				if (!bUsesCustomNetworking) {
+				if (!GetUsesCustomNetworking() && false) {
 					//UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_CustomAttachmentReplication() 1"));
 					TArray<UPrimitiveComponent*> Components;
 					GetComponents<UPrimitiveComponent>(Components);
@@ -301,7 +358,7 @@ void ACircuitActor::OnRep_CustomAttachmentReplication()
 
 
 		// @TODO - this is meant as an optimization but it's not working
-		if (!bUsesCustomNetworking) {
+		if (!GetUsesCustomNetworking()) {
 			TArray<UPrimitiveComponent*> Components;
 			GetComponents<UPrimitiveComponent>(Components);
 
@@ -322,6 +379,60 @@ void ACircuitActor::OnRep_CustomAttachmentReplication()
 		// Calling this extraneously does not hurt but will properly fire events if the movement state changed while attached.
 		// This is needed because client side movement is ignored when attached
 		//OnRep_ReplicatedMovement(); // @PERDIX - Unneeded?
+	}
+}
+
+
+// This only exists for non-custom networking debugging
+void ACircuitActor::OnRep_ReplicatedMovement()
+{
+	Super::OnRep_ReplicatedMovement();
+	return;
+	//GetActorRotation().Normalize();
+	if (Cast<UPrimitiveComponent>(RootComponent)->BodyInstance.WeldParent == nullptr) {
+
+		//UE_LOG(LogTemp, Warning, TEXT("*[CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s %f %f %f %f"), *this->GetName(), Cast<UPrimitiveComponent>(RootComponent)->GetComponentRotation().Quaternion().X, Cast<UPrimitiveComponent>(RootComponent)->GetComponentRotation().Quaternion().Y, Cast<UPrimitiveComponent>(RootComponent)->GetComponentRotation().Quaternion().Z, Cast<UPrimitiveComponent>(RootComponent)->GetComponentRotation().Quaternion().W);
+		//UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s %f %f %f %f"), *this->GetName(), GetReplicatedMovement().Rotation.Quaternion().X, GetReplicatedMovement().Rotation.Quaternion().Y, GetReplicatedMovement().Rotation.Quaternion().Z, GetReplicatedMovement().Rotation.Quaternion().W);
+
+		UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s %f %f %f"), *this->GetName(), Cast<UPrimitiveComponent>(RootComponent)->GetComponentRotation().Pitch, Cast<UPrimitiveComponent>(RootComponent)->GetComponentRotation().Yaw, Cast<UPrimitiveComponent>(RootComponent)->GetComponentRotation().Roll);
+		UE_LOG(LogTemp, Warning, TEXT("REP [CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s %f %f %f"), *this->GetName(), GetReplicatedMovement().Rotation.Pitch, GetReplicatedMovement().Rotation.Yaw, GetReplicatedMovement().Rotation.Roll);
+
+		//UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s %f %f %f"), *this->GetName(), Cast<UPrimitiveComponent>(RootComponent)->GetComponentLocation().X, Cast<UPrimitiveComponent>(RootComponent)->GetComponentLocation().Y, Cast<UPrimitiveComponent>(RootComponent)->GetComponentLocation().Z);
+		//UE_LOG(LogTemp, Warning, TEXT("REP [CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s %f %f %f"), *this->GetName(), GetReplicatedMovement().Location.X, GetReplicatedMovement().Location.Y, GetReplicatedMovement().Location.Z);
+
+		const FRepMovement& LocalRepMovement = GetReplicatedMovement();
+
+		if (LocalRepMovement.bRepPhysics)
+		{
+			// If we are welded we just want the parent's update to move us.
+			UPrimitiveComponent* RootPrimComp = Cast<UPrimitiveComponent>(RootComponent);
+			if (!RootPrimComp || !RootPrimComp->IsWelded())
+			{
+				FRepMovement temp;
+				temp = GetReplicatedMovement();
+				temp.Location = GetReplicatedMovement().Location;
+				temp.Rotation.Normalize();
+				SetActorRotation(temp.Rotation);
+				FRigidBodyState NewState;
+				//GetReplicatedMovement().CopyTo(NewState, this);
+
+				temp.CopyTo(NewState, this);
+
+				FVector DeltaPos(FVector::ZeroVector);
+				RootPrimComp->SetRigidBodyReplicatedTarget(NewState);
+
+				UE_LOG(LogTemp, Warning, TEXT("NewState [CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s %f %f %f"), *this->GetName(), NewState.Quaternion.Rotator().Pitch, NewState.Quaternion.Rotator().Yaw, NewState.Quaternion.Rotator().Roll);
+
+			}
+		}
+		else {
+			UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s Here"), *this->GetName());
+		}
+
+		//GetReplicatedMovement().Rotation.Yaw = GetReplicatedMovement().Rotation.Yaw + 360.0f;
+		//UE_LOG(LogTemp, Warning, TEXT("*[CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s %f %f %f"), *this->GetName(), Cast<UPrimitiveComponent>(RootComponent)->GetPhysicsAngularVelocityInDegrees().X, Cast<UPrimitiveComponent>(RootComponent)->GetPhysicsAngularVelocityInDegrees().Y, Cast<UPrimitiveComponent>(RootComponent)->GetPhysicsAngularVelocityInDegrees().Z);
+		//UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - OnRep_ReplicatedMovement() %s %f %f %f"), *this->GetName(), GetReplicatedMovement().AngularVelocity.X, GetReplicatedMovement().AngularVelocity.Y, GetReplicatedMovement().AngularVelocity.Z);
+		//Super::OnRep_ReplicatedMovement();
 	}
 }
 
@@ -503,6 +614,70 @@ void ACircuitActor::Multi_UpdateInterpMovement_Implementation(FLinearInterpolati
 }
 
 //////////////////////////////////////////////////////////////////////////
+// New Skeletal Mesh Replication Code 12/23/2021 (Organize after into the above section this code has been proven)
+
+void ACircuitActor::Client_UpdateReplicatedSkeleMovement(FRepSkeleMovement newRep) {
+	USkeletalMeshComponent* skeleMeshComp = Cast<USkeletalMeshComponent>(RootComponent);
+	if (skeleMeshComp != nullptr) {
+		if (skeleMeshComp->GetBodyInstance(newRep.Bone)) {
+			//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Client_UpdateReplicatedSkeleMovement() %s"), GetWorld()->GetRealTimeSeconds(), *newRep.Bone.ToString());
+			FTransform temp;
+			temp = FTransform::Identity;
+			temp.SetLocation(newRep.Location);
+			temp.SetRotation(newRep.Quat);
+			skeleMeshComp->GetBodyInstance(newRep.Bone)->SetBodyTransform(temp, ETeleportType::ResetPhysics, false);
+			//skeleMeshComp->GetBodyInstance(newRep.Bone)->SetEnableGravity(false);
+			//skeleMeshComp->GetBodyInstance(newRep.Bone)->CreateDOFLock();
+			//skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockRotation = true;
+			//skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockXRotation = true;
+			//skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockYRotation = true;
+			//skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockZRotation = true;
+			//skeleMeshComp->GetBodyInstance(newRep.Bone)->PutInstanceToSleep();
+			//skeleMeshComp->PutAllRigidBodiesToSleep();
+			TArray<FConstraintInstance*> Cons;
+			Cons = skeleMeshComp->Constraints;
+			skeleMeshComp->bUpdateJointsFromAnimation = true;
+			
+			for (size_t i = 0; i < Cons.Num(); i++)
+			{
+				if (skeleMeshComp->GetParentBone(newRep.Bone) == "") {
+					continue;
+				}
+				UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Client_UpdateReplicatedSkeleMovement() %s"), GetWorld()->GetRealTimeSeconds(), *newRep.Bone.ToString());
+				
+
+				//Cons[i]->SetAngularSwing1Motion(EAngularConstraintMotion::ACM_Locked);
+				//Cons[i]->SetAngularSwing2Motion(EAngularConstraintMotion::ACM_Locked);
+				//Cons[i]->SetAngularTwistMotion(EAngularConstraintMotion::ACM_Locked);
+
+				//Cons[i]->SetRefPosition(EConstraintFrame::Frame1, newRep.Location);
+
+				//Cons[i]->SetAngularSwing1Motion(EAngularConstraintMotion::ACM_Limited);
+				//Cons[i]->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Limited, 1.0f);
+				//Cons[i]->SetAngularSwing2Motion(EAngularConstraintMotion::ACM_Limited);
+				//Cons[i]->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Limited, 1.0f);
+				
+				//DrawDebugBox(GetWorld(), Cons[i]->Pos1 + skeleMeshComp->GetComponentLocation(), FVector(50.0f, 50.0f, 50.0f), FColor::Blue, false, 5.0f, 0, 2.0f);
+				//DrawDebugBox(GetWorld(), Cons[i]->Pos2 + skeleMeshComp->GetComponentLocation(), FVector(50.0f, 50.0f, 50.0f), FColor::Green, false, 5.0f, 0, 2.0f);
+				//DrawDebugDirectionalArrow(GetWorld(), skeleMeshComp->GetComponentLocation() + Cons[i]->GetRefFrame(EConstraintFrame::Frame1).GetLocation(), skeleMeshComp->GetComponentLocation() + Cons[i]->GetRefFrame(EConstraintFrame::Frame2).GetLocation(), 15.0f, FColor::Cyan, false, 2.0f, 0, 1);
+			}
+		}
+	}
+}
+
+bool ACircuitActor::Multi_UpdateSkeleMovement_Validate(FRepSkeleMovement newRep) {
+	return true;
+}
+
+void ACircuitActor::Multi_UpdateSkeleMovement_Implementation(FRepSkeleMovement newRep) {
+	if (GetNetMode() == ENetMode::NM_Client) {
+		//ReplicatedInterpolationMovement = newRep;
+		Client_UpdateReplicatedSkeleMovement(newRep);
+		//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Multi_UpdateInterpMovement_Implementation() %f"), GetWorld()->GetRealTimeSeconds(), newRep.TimeStamp);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Helpers
 
 void ACircuitActor::K2_DestroyActor()
@@ -578,10 +753,17 @@ ACircuitActor* ACircuitActor::GetTopAttachedParent(ACircuitActor* Child)
 void ACircuitActor::DebugDrawWelds() {
 	ACircuitActor* top = GetTopAttachedParent(this);
 	if (top == nullptr || top == this) {
+		if (GetNetMode() == ENetMode::NM_Client) {
+			//UE_LOG(LogTemp, Warning, TEXT("[CLIENT] ACircuitActor - DebugDrawWelds() %s %f %f %f"), *this->GetName(), GetReplicatedMovement().AngularVelocity.X, GetReplicatedMovement().AngularVelocity.Y, GetReplicatedMovement().AngularVelocity.Z);
+		}
+		else {
+			//UE_LOG(LogTemp, Warning, TEXT("**[SERVER] ACircuitActor - DebugDrawWelds() %s %f %f %f"), *this->GetName(), Cast<UPrimitiveComponent>(RootComponent)->GetPhysicsAngularVelocityInDegrees().X, Cast<UPrimitiveComponent>(RootComponent)->GetPhysicsAngularVelocityInDegrees().Y, Cast<UPrimitiveComponent>(RootComponent)->GetPhysicsAngularVelocityInDegrees().Z);
+		}
 		return;
 	}
 
 	if (Cast<UPrimitiveComponent>(RootComponent) && Cast<UPrimitiveComponent>(RootComponent)->BodyInstance.WeldParent != nullptr) {
+		//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor DebugDrawWelds()"), GetWorld()->GetRealTimeSeconds());
 		DrawDebugBox(GetWorld(), top->GetActorLocation(), FVector(55.0f, 55.0f, 55.0f), FColor::Blue, false, -1.0f, 0, 2.0f);
 
 		DrawDebugDirectionalArrow(GetWorld(), GetActorLocation(), top->GetActorLocation(), 15.0f, FColor::Cyan, false, -1.0f, 0, 1);

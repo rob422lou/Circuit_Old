@@ -325,7 +325,7 @@ void UConstraintWeldComponent::CombineConstraintWeldComponents(UConstraintWeldCo
 	if (CircuitActorRoot) {
 		UE_LOG(LogTemp, Warning, TEXT("UConstraintWeldComponent - CombineConstraintWeldComponents() Move old parent over first"));
 		CircuitActorRoot->AttachToComponent(AttachedParentRoot, FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true), "");
-		
+
 		//CircuitActorRoot->CustomAttachmentReplication.AttachParent = AttachedParentRoot;
 		CircuitActorRoot->CustomAttachmentReplication.AttachComponent = AttachedParentRoot;
 		CircuitActorRoot->CustomAttachmentReplication.AttachSocket = CircuitActorRoot->GetAttachParentSocketName();
