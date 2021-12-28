@@ -54,6 +54,7 @@ protected:
 	// [Server+Client] Used in PhysFalling
 	bool bWasFalling;
 
+	bool InitialMove;
 	float CurrentMovementTime;
 	float InitialMovementTime;
 

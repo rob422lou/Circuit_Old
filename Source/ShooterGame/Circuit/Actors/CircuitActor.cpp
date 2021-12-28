@@ -66,7 +66,8 @@ void ACircuitActor::BeginPlay()
 			USkeletalMeshComponent* skeleMeshComp = Cast<USkeletalMeshComponent>(RootComponent);
 			if (skeleMeshComp != nullptr) {
 				skeleMeshComp->SetSimulatePhysics(true);
-				skeleMeshComp->SetEnableGravity(false);
+				/*
+				//skeleMeshComp->SetEnableGravity(false);
 				for (size_t i = 0; i < skeleMeshComp->GetNumBones(); i++)
 				{
 					if (skeleMeshComp->GetBodyInstance(skeleMeshComp->GetBoneName(i)) != nullptr) {
@@ -74,6 +75,10 @@ void ACircuitActor::BeginPlay()
 						UE_LOG(LogTemp, Warning, TEXT("[%f] ACircuitActor BeginPlay() USkeletalMeshComponent %s"), GetWorld()->GetRealTimeSeconds(), *skeleMeshComp->GetBoneName(i).ToString());
 					}
 				}
+				*/
+				FRigidBodyState test;
+				skeleMeshComp->GetAnimInstance()->SavePoseSnapshot("test");
+				//skeleMeshComp->SetRefPoseOverride
 			}
 			else {
 				// Turn off physics simulation for all primitive components (mainly static meshes and skeletal meshes)
@@ -100,7 +105,7 @@ void ACircuitActor::BeginPlay()
 					BonesToRep.Add(skeleMeshComp->GetBoneName(i));
 				}
 
-				ServerSnapshotTime = ServerSnapshotTime * 100.0f;
+				ServerSnapshotTime = ServerSnapshotTime * 1.0f;
 			}
 			//LastUpdateTime = GetWorld()->GetRealTimeSeconds();
 		}
@@ -497,6 +502,7 @@ void ACircuitActor::ReplicateInterpolationMovement()
 	if (CustomAttachmentReplication.AttachComponent != nullptr || !GetUsesCustomNetworking()) {
 		return;
 	}
+
 	//UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor ReplicateInterpolationMovement() HERE 0"), GetWorld()->GetRealTimeSeconds());
 
 	// If we haven't moved then don't send update.
@@ -625,42 +631,77 @@ void ACircuitActor::Client_UpdateReplicatedSkeleMovement(FRepSkeleMovement newRe
 			temp = FTransform::Identity;
 			temp.SetLocation(newRep.Location);
 			temp.SetRotation(newRep.Quat);
-			skeleMeshComp->GetBodyInstance(newRep.Bone)->SetBodyTransform(temp, ETeleportType::ResetPhysics, false);
+			
+			/*
+			if (skeleMeshComp->GetBodyInstance(newRep.Bone)->GetUnrealWorldTransform().Equals(temp, 0.1f)) {
+				UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Client_UpdateReplicatedSkeleMovement() HERE %s"), GetWorld()->GetRealTimeSeconds(), *newRep.Bone.ToString());
+				return;
+			}
+			*/
+			skeleMeshComp->GetBodyInstance(newRep.Bone)->SetBodyTransform(temp, ETeleportType::ResetPhysics, true);
 			//skeleMeshComp->GetBodyInstance(newRep.Bone)->SetEnableGravity(false);
-			//skeleMeshComp->GetBodyInstance(newRep.Bone)->CreateDOFLock();
-			//skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockRotation = true;
-			//skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockXRotation = true;
-			//skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockYRotation = true;
-			//skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockZRotation = true;
-			//skeleMeshComp->GetBodyInstance(newRep.Bone)->PutInstanceToSleep();
-			//skeleMeshComp->PutAllRigidBodiesToSleep();
+
+			/*
+			skeleMeshComp->GetBodyInstance(newRep.Bone)->CreateDOFLock();
+			skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockRotation = true;
+			skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockXRotation = true;
+			skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockYRotation = true;
+			skeleMeshComp->GetBodyInstance(newRep.Bone)->bLockZRotation = true;
+			skeleMeshComp->GetBodyInstance(newRep.Bone)->PutInstanceToSleep();
+			skeleMeshComp->PutAllRigidBodiesToSleep();
 			TArray<FConstraintInstance*> Cons;
 			Cons = skeleMeshComp->Constraints;
-			skeleMeshComp->bUpdateJointsFromAnimation = true;
+			//skeleMeshComp->bUpdateJointsFromAnimation = true;
 			
 			for (size_t i = 0; i < Cons.Num(); i++)
 			{
 				if (skeleMeshComp->GetParentBone(newRep.Bone) == "") {
 					continue;
 				}
-				UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Client_UpdateReplicatedSkeleMovement() %s"), GetWorld()->GetRealTimeSeconds(), *newRep.Bone.ToString());
+				UE_LOG(LogTemp, Warning, TEXT("[%f] [CLIENT] ACircuitActor Client_UpdateReplicatedSkeleMovement() %s %f"), GetWorld()->GetRealTimeSeconds(), *newRep.Bone.ToString(), Cons[i]->ProfileInstance.TwistLimit.Stiffness);
 				
+				Cons[i]->EnableProjection();
+				Cons[i]->SetProjectionParams(true, 1.0f, 1.0f);
+				Cons[i]->SetAngularTwistMotion(EAngularConstraintMotion::ACM_Limited);
+				Cons[i]->SetAngularSwing1Motion(EAngularConstraintMotion::ACM_Limited);
+				Cons[i]->SetAngularSwing2Motion(EAngularConstraintMotion::ACM_Limited);
 
+				Cons[i]->ProfileInstance.TwistLimit.TwistMotion = EAngularConstraintMotion::ACM_Limited;
+				Cons[i]->ProfileInstance.ConeLimit.Swing1Motion = EAngularConstraintMotion::ACM_Limited;
+				Cons[i]->ProfileInstance.ConeLimit.Swing2Motion = EAngularConstraintMotion::ACM_Limited;
+				Cons[i]->ProfileInstance.ConeLimit.bSoftConstraint = true;
+				Cons[i]->ProfileInstance.TwistLimit.bSoftConstraint = true;
+				Cons[i]->ProfileInstance.TwistLimit.Stiffness = 10000000.0f;
+				Cons[i]->ProfileInstance.ConeLimit.Stiffness = 10000000.0f;
+				Cons[i]->ProfileInstance.TwistLimit.Damping = 10000000.0f;
+				Cons[i]->ProfileInstance.ConeLimit.Damping = 10000000.0f;
+				Cons[i]->ProfileInstance.TwistLimit.Restitution = 10000000.0f;
+				Cons[i]->ProfileInstance.ConeLimit.Restitution = 10000000.0f;
+
+				Cons[i]->ProfileInstance.TwistLimit.UpdateTwistLimit_AssumesLocked(Cons[i]->ConstraintHandle, 1.0f);
+
+				Cons[i]->ProfileInstance.bEnableProjection = true;
+				Cons[i]->ProfileInstance.bEnableSoftProjection = true;
+				Cons[i]->ProfileInstance.ProjectionAngularAlpha = 1.0f;
+				Cons[i]->UpdateAngularLimit();
+				
 				//Cons[i]->SetAngularSwing1Motion(EAngularConstraintMotion::ACM_Locked);
 				//Cons[i]->SetAngularSwing2Motion(EAngularConstraintMotion::ACM_Locked);
 				//Cons[i]->SetAngularTwistMotion(EAngularConstraintMotion::ACM_Locked);
 
 				//Cons[i]->SetRefPosition(EConstraintFrame::Frame1, newRep.Location);
 
+				//Cons[i]->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Limited, 45.0f);
 				//Cons[i]->SetAngularSwing1Motion(EAngularConstraintMotion::ACM_Limited);
-				//Cons[i]->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Limited, 1.0f);
+				//Cons[i]->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Limited, 45.0f);
 				//Cons[i]->SetAngularSwing2Motion(EAngularConstraintMotion::ACM_Limited);
-				//Cons[i]->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Limited, 1.0f);
+				//Cons[i]->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Limited, 45.0f);
 				
 				//DrawDebugBox(GetWorld(), Cons[i]->Pos1 + skeleMeshComp->GetComponentLocation(), FVector(50.0f, 50.0f, 50.0f), FColor::Blue, false, 5.0f, 0, 2.0f);
 				//DrawDebugBox(GetWorld(), Cons[i]->Pos2 + skeleMeshComp->GetComponentLocation(), FVector(50.0f, 50.0f, 50.0f), FColor::Green, false, 5.0f, 0, 2.0f);
 				//DrawDebugDirectionalArrow(GetWorld(), skeleMeshComp->GetComponentLocation() + Cons[i]->GetRefFrame(EConstraintFrame::Frame1).GetLocation(), skeleMeshComp->GetComponentLocation() + Cons[i]->GetRefFrame(EConstraintFrame::Frame2).GetLocation(), 15.0f, FColor::Cyan, false, 2.0f, 0, 1);
 			}
+			*/
 		}
 	}
 }

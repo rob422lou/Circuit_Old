@@ -182,11 +182,14 @@ bool UCircuitCharacterMovement::ClientUpdatePositionAfterServerUpdate()
 	if (MovementBuffer.Num() == 0 || InitialMovementTime <= -10.0f) {
 		return false;
 	}
-
+	
+	/*
 	// Still buffering
-	if (CurrentMovementTime <= (InitialMovementTime + GetClientBufferTime())) {
+	if (CurrentMovementTime <= (InitialMovementTime + 0.015f)) {
 		return false;
 	}
+	*/
+	//FMath::VInterpConstantTo()
 
 	float LerpPercent = 0.0f;
 	const float LerpLimit = 1.15f;
@@ -196,9 +199,14 @@ bool UCircuitCharacterMovement::ClientUpdatePositionAfterServerUpdate()
 	if (ServerDelta > SMALL_NUMBER)
 	{
 		// Calculate lerp percent
-		float RemainingTime = MovementBuffer[1].TimeStamp - (CurrentMovementTime - GetClientBufferTime()); // We need to subtract ClientBufferTime otherwise CurrentMovementTime will be in real time, not in past buffered time.
+		float RemainingTime = MovementBuffer[1].TimeStamp - (CurrentMovementTime); // We need to subtract ClientBufferTime otherwise CurrentMovementTime will be in real time, not in past buffered time.
+		//UE_LOG(LogTemp, Error, TEXT("[%f] UCircuitCharacterMovement - ClientUpdatePositionAfterServerUpdate() MovementBuffer[1].TimeStamp: %f CurrentMovementTime %f GetClientBufferTime() %f"), GetWorld()->GetRealTimeSeconds(), MovementBuffer[1].TimeStamp, CurrentMovementTime, GetClientBufferTime());
 		float CurrentSmoothTime = ServerDelta - RemainingTime;
+		//UE_LOG(LogTemp, Error, TEXT("[%f] UCircuitCharacterMovement - ClientUpdatePositionAfterServerUpdate() CurrentSmoothTime: %f"), GetWorld()->GetRealTimeSeconds(), CurrentSmoothTime);
 		LerpPercent = FMath::Clamp(CurrentSmoothTime / ServerDelta, 0.0f, LerpLimit);
+		if (InitialMove) {
+			LerpPercent *= 0.575f;
+		}
 	}
 	else {
 
@@ -215,6 +223,7 @@ bool UCircuitCharacterMovement::ClientUpdatePositionAfterServerUpdate()
 
 	// LerpPercent is too high, need to move buffer forward and recalculate lerppercent based on new movement point
 	if (LerpPercent >= (1.0f - KINDA_SMALL_NUMBER)) {
+		InitialMove = false;
 		MovementBuffer.RemoveAt(0);
 		if (MovementBuffer.Num() > 1) {
 			ServerDelta = MovementBuffer[1].TimeStamp - MovementBuffer[0].TimeStamp;
@@ -235,6 +244,8 @@ bool UCircuitCharacterMovement::ClientUpdatePositionAfterServerUpdate()
 				//UE_LOG(LogTemp, Error, TEXT("[%f] PerdixActor - Tick() Second LerpPercent calculation is too large: %f"), GetWorld()->GetRealTimeSeconds(), LerpPercent);
 			}
 
+			//UE_LOG(LogTemp, Error, TEXT("[%f] UCircuitCharacterMovement - ClientUpdatePositionAfterServerUpdate() MoveClient 1 LerpPercent: %f"), GetWorld()->GetRealTimeSeconds(), LerpPercent);
+
 			MoveClient(MovementBuffer[0], MovementBuffer[1], LerpPercent);
 			return true;
 		}
@@ -252,6 +263,8 @@ bool UCircuitCharacterMovement::ClientUpdatePositionAfterServerUpdate()
 		}
 	}
 	else {
+		//UE_LOG(LogTemp, Error, TEXT("[%f] UCircuitCharacterMovement - ClientUpdatePositionAfterServerUpdate() MoveClient 2 LerpPercent: %f"), GetWorld()->GetRealTimeSeconds(), LerpPercent);
+
 		MoveClient(MovementBuffer[0], MovementBuffer[1], LerpPercent);
 		return true;
 	}
@@ -1016,6 +1029,7 @@ void UCircuitCharacterMovement::AddToMovementBuffer(FVector NewLocation, FQuat N
 	//UE_LOG(LogTemp, Warning, TEXT("[%f] UCircuitCharacterMovement AddToMovementBuffer() MovementBuffer.Num() = %d"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num());
 	// Add initial location first so we have 2 points to interpolate between
 	if (MovementBuffer.Num() == 0) {
+		UE_LOG(LogTemp, Error, TEXT("[%f] UCircuitCharacterMovement AddToMovementBuffer() MovementBuffer.Num() = %d"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num());
 		InitialMovementTime = TimeStamp - GetNetworkSendInterval();
 		CurrentMovementTime = TimeStamp;
 
@@ -1031,6 +1045,8 @@ void UCircuitCharacterMovement::AddToMovementBuffer(FVector NewLocation, FQuat N
 				UpdatedComponent->GetComponentQuat(),
 				TimeStamp - GetNetworkSendInterval(), GetMovementBase(), NewBaseBoneName, (GetMovementBase() == nullptr) ? false : true, (GetMovementBase() == nullptr) ? false : true, MovementMode) //Time is now + time for when it should be rendered
 		);
+
+		InitialMove = true;
 	}
 
 	if (TimeStamp > MovementBuffer[MovementBuffer.Num() - 1].TimeStamp) {
@@ -1045,9 +1061,9 @@ void UCircuitCharacterMovement::AddToMovementBuffer(FVector NewLocation, FQuat N
 	//UE_LOG(LogTemp, Warning, TEXT("[%f] UPerdixCharacterMovement AddToMovementBuffer() Num:	%i TimeStamp:	%f	CMT:	%f"), GetWorld()->GetRealTimeSeconds(), MovementBuffer.Num(), TimeStamp, CurrentMovementTime);
 
 	// @todo - This purges relative locations. Convert to world location.
-	if (MovementBuffer.Num() > 32) {
+	if (MovementBuffer.Num() > 4) {
 		MovementBuffer.RemoveAt(0, 1);
-		UE_LOG(LogTemp, Warning, TEXT("[%f] UCircuitCharacterMovement AddToMovementBuffer() Purging buffer. > 32 Actor: %s"), GetWorld()->GetRealTimeSeconds(), *GetName());
+		//UE_LOG(LogTemp, Warning, TEXT("[%f] UCircuitCharacterMovement AddToMovementBuffer() Purging buffer. > 4 Actor: %s"), GetWorld()->GetRealTimeSeconds(), *GetName());
 	}
 
 }
