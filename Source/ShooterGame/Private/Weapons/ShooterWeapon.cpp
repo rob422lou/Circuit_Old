@@ -223,9 +223,6 @@ void AShooterWeapon::DetachMeshFromPawn()
 
 void AShooterWeapon::StartFire()
 {
-	// @CIRCUIT addition
-	OnStartFire();
-
 	if (GetLocalRole() < ROLE_Authority)
 	{
 		ServerStartFire();
@@ -240,9 +237,6 @@ void AShooterWeapon::StartFire()
 
 void AShooterWeapon::StopFire()
 {
-	// @CIRCUIT addition
-	OnStopFire();
-
 	if ((GetLocalRole() < ROLE_Authority) && MyPawn && MyPawn->IsLocallyControlled())
 	{
 		ServerStopFire();
@@ -257,9 +251,6 @@ void AShooterWeapon::StopFire()
 
 void AShooterWeapon::StartReload(bool bFromReplication)
 {
-	// @CIRCUIT addition
-	OnStartReload();
-
 	if (!bFromReplication && GetLocalRole() < ROLE_Authority)
 	{
 		ServerStartReload();
@@ -291,8 +282,6 @@ void AShooterWeapon::StartReload(bool bFromReplication)
 
 void AShooterWeapon::StopReload()
 {
-	// @CIRCUIT addition
-	OnStopReload();
 	if (CurrentState == EWeaponState::Reloading)
 	{
 		bPendingReload = false;
@@ -1001,38 +990,3 @@ float AShooterWeapon::GetEquipDuration() const
 {
 	return EquipDuration;
 }
-
-//////////////////////////////////////////////////////////////////////////
-// @CIRCUIT additions
-
-
-void AShooterWeapon::OnStartFire_Implementation()
-{
-	//StartFire();
-}
-
-void AShooterWeapon::OnStopFire_Implementation()
-{
-	//StopFire();
-}
-
-void AShooterWeapon::OnStartReload_Implementation()
-{
-	//StartReload(true);
-}
-
-void AShooterWeapon::OnStopReload_Implementation()
-{
-	//StopReload();
-}
-
-void AShooterWeapon::OnStartTargeting_Implementation()
-{
-
-}
-
-void AShooterWeapon::OnStopTargeting_Implementation()
-{
-
-}
-
