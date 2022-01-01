@@ -7,7 +7,12 @@
 		{
 			"Name": "ShooterGame",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"CoreUObject",
+				"Engine",
+				"ChaosVehicles"
+			]
 		},
 		{
 			"Name": "ShooterGameLoadingScreen",
@@ -95,6 +100,10 @@
 		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true
+		},
+		{
+			"Name": "ChaosVehiclesPlugin",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [
@@ -109,7 +118,8 @@
 		"LinuxClient",
 		"LinuxAArch64NoEditor",
 		"LinuxAArch64Server",
-		"LinuxAArchClient"
+		"LinuxAArchClient",
+		"Windows"
 	],
 	"EpicSampleNameHash": "3868556100"
 }

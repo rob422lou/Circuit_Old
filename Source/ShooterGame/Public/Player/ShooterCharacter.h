@@ -171,11 +171,13 @@ class AShooterCharacter : public ACharacter
 	/** player released start fire action */
 	void OnStopFire();
 
+	/** @CIRCUIT - added virtual */
 	/** player pressed targeting action */
-	void OnStartTargeting();
+	virtual void OnStartTargeting();
 
+	/** @CIRCUIT - added virtual */
 	/** player released targeting action */
-	void OnStopTargeting();
+	virtual void OnStopTargeting();
 
 	/** player pressed next weapon action */
 	void OnNextWeapon();
@@ -183,8 +185,9 @@ class AShooterCharacter : public ACharacter
 	/** player pressed prev weapon action */
 	void OnPrevWeapon();
 
+	/** @CIRCUIT - added virtual */
 	/** player pressed reload action */
-	void OnReload();
+	virtual void OnReload();
 
 	/** player pressed jump action */
 	void OnStartJump();

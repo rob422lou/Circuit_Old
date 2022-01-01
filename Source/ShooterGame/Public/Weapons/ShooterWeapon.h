@@ -535,5 +535,32 @@ protected:
 	FORCEINLINE USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
 	/** Returns Mesh3P subobject **/
 	FORCEINLINE USkeletalMeshComponent* GetMesh3P() const { return Mesh3P; }
+
+	public:
+		//////////////////////////////////////////////////////////////////////////
+		// @CIRCUIT Additions
+
+		UFUNCTION(BlueprintNativeEvent, Category = "Weapon")
+		void OnStartFire();
+
+		/** [local + server] stop weapon fire */
+		UFUNCTION(BlueprintNativeEvent, Category = "Circuit|Weapon")
+		void OnStopFire();
+
+		/** [all] start weapon reload */
+		UFUNCTION(BlueprintNativeEvent, Category = "Weapon")
+		void OnStartReload();
+		//virtual void StartReload(bool bFromReplication = false);
+
+		/** [local + server] interrupt weapon reload */
+		UFUNCTION(BlueprintNativeEvent, Category = "Weapon")
+		void OnStopReload();
+		//virtual void StopReload();
+
+		UFUNCTION(BlueprintNativeEvent, Category = "Weapon")
+		void OnStartTargeting();
+
+		UFUNCTION(BlueprintNativeEvent, Category = "Weapon")
+		void OnStopTargeting();
 };
 
