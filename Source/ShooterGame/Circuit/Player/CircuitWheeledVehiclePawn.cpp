@@ -8,7 +8,8 @@ ACircuitWheeledVehiclePawn::ACircuitWheeledVehiclePawn(const FObjectInitializer&
 	: Super(ObjectInitializer)
 {
 	UsableComp = ObjectInitializer.CreateDefaultSubobject<UUsableComponent>(this, TEXT("UsableComponent"));
-	//UsableComp->SetupAttachment(RootComponent, "");
+	
+	BaseLookUpRate = 45.f;
 }
 
 void ACircuitWheeledVehiclePawn::PostInitializeComponents()
@@ -151,6 +152,8 @@ void ACircuitWheeledVehiclePawn::SetupPlayerInputComponent(class UInputComponent
 
 	PlayerInputComponent->BindAction("Use", IE_Pressed, this, &ACircuitWheeledVehiclePawn::OnUsePress);
 	//PlayerInputComponent->BindAction("Use", IE_Released, this, &ACircuitCharacter::OnStopUse);
+
+	PlayerInputComponent->BindAxis("LookUp", this, &ACircuitWheeledVehiclePawn::AddControllerPitchInput);
 }
 
 // @TODO - I don't like that we use this instead of calling OnUse directly, but I can't get BindAction to work with it
@@ -163,7 +166,7 @@ void ACircuitWheeledVehiclePawn::OnUse_Implementation(ACircuitCharacter* Instiga
 	if (GetLocalRole() < ROLE_Authority)
 	{
 		DrivingPawn = InstigatingPlayer;
-
+		//DrivingPawn->GetMesh()->SetVisibility(false);
 		if (IsLocallyControlled()) {
 			ServerOnUse(InstigatingPlayer);
 		}
@@ -171,10 +174,10 @@ void ACircuitWheeledVehiclePawn::OnUse_Implementation(ACircuitCharacter* Instiga
 	else {
 		if (DrivingPawn == nullptr) {
 			DrivingPawn = InstigatingPlayer;
-			DrivingPawn->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			DrivingPawn->GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-			DrivingPawn->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
-			DrivingPawn->GetRootComponent()->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform, "Seat");
+			//DrivingPawn->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			//DrivingPawn->GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			//DrivingPawn->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
+			//DrivingPawn->GetRootComponent()->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform, "Seat");
 
 			DrivingPawn->Controller->Possess(this);
 			//OnStartEnter(InstigatingPlayer);
@@ -247,4 +250,8 @@ void ACircuitWheeledVehiclePawn::ServerOnStartExit_Implementation(ACircuitCharac
 bool ACircuitWheeledVehiclePawn::ServerOnStartExit_Validate(ACircuitCharacter* InstigatingPlayer)
 {
 	return true;
+}
+
+void ACircuitWheeledVehiclePawn::AddControllerPitchInput(float Val) {
+	Super::AddControllerPitchInput(Val);
 }

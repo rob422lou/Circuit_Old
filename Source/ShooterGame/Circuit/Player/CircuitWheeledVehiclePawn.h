@@ -23,6 +23,9 @@ class SHOOTERGAME_API ACircuitWheeledVehiclePawn : public AWheeledVehiclePawn
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent);
 public:
 
+	/** Base lookup rate, in deg/sec. Other scaling may affect final lookup rate. */
+	float BaseLookUpRate;
+
 	UPROPERTY()
 	UUsableComponent* UsableComp;
 
@@ -54,4 +57,6 @@ public:
 
 	UFUNCTION(reliable, server, WithValidation)
 	void ServerOnStartExit(ACircuitCharacter* InstigatingPlayer);
+
+	virtual void AddControllerPitchInput(float Val) override;
 };
