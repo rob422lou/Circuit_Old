@@ -158,7 +158,7 @@ UUsableComponent* ACircuitCharacter::GetUsableComponentInView()
 	FCollisionQueryParams TraceParams(FName(TEXT("UsableTrace")), true, this);
 	//TraceParams.bTraceAsyncScene = true;
 	TraceParams.bReturnPhysicalMaterial = false;
-	TraceParams.bTraceComplex = true;
+	TraceParams.bTraceComplex = false;
 
 	FHitResult Hit(ForceInit);
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, start_trace, end_trace, ECC_GameTraceChannel2, TraceParams);
@@ -328,7 +328,8 @@ void ACircuitCharacter::SetOutlineColor(EStencilColor OutlineColor, AActor* high
 {
 	//Cosmetics don't need to be drawn for dedicated servers
 	if (GetNetMode() != ENetMode::NM_DedicatedServer) {
-		TArray<UActorComponent*> ComponentArray = highlightActor->GetComponentsByClass(UStaticMeshComponent::StaticClass());
+		TArray<UActorComponent*> ComponentArray;
+		highlightActor->GetComponents(UStaticMeshComponent::StaticClass(), ComponentArray);
 
 		//Turn off outline (may yield renderer processing benefits?)
 		if (OutlineColor == EStencilColor::SC_None) {

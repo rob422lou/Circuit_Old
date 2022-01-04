@@ -337,6 +337,8 @@ void AShooterCharacter::OnDeath(float KillingDamage, struct FDamageEvent const& 
 		return;
 	}
 
+	OnCharacterDeath.Broadcast(this, KillingDamage, DamageEvent, PawnInstigator, DamageCauser);
+
 	SetReplicatingMovement(false);
 	TearOff();
 	bIsDying = true;

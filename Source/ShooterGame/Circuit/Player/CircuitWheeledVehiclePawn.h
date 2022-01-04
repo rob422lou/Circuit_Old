@@ -38,6 +38,15 @@ public:
 
 	void PlayerExitVehicle(ACircuitCharacter* ExitingPlayer);
 
+/////////////////////////////////////////////////////////////////////////
+// Vehicle Pawn Interaction
+
+	UFUNCTION()
+	void RespondToDriverDeath(class AShooterCharacter* DeadCharacter, float KillingDamage, struct FDamageEvent DamageEvent, class APawn* PawnInstigator, class AActor* DamageCauser);
+
+//////////////////////////////////////////////////////////////////////////
+// Input
+
 	void OnUsePress();
 
 	UFUNCTION(BlueprintNativeEvent, Category = PlayerAbility)

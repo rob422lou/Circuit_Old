@@ -10,6 +10,8 @@ public class DiscordIntegration : ModuleRules
 		PCHUsage = PCHUsageMode.NoSharedPCHs;
 		CppStandard = CppStandardVersion.Latest;
 
+		PrivatePCHHeaderFile = "Public/DiscordIntegration.h";
+
 		PublicIncludePaths.Add(DiscordPath);
 
 

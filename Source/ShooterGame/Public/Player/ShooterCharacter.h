@@ -8,6 +8,9 @@
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnShooterCharacterEquipWeapon, AShooterCharacter*, AShooterWeapon* /* new */);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnShooterCharacterUnEquipWeapon, AShooterCharacter*, AShooterWeapon* /* old */);
 
+// @CIRCUIT addition
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnCharacterDeath, class AShooterCharacter*, DeadCharacter, float, KillingDamage, struct FDamageEvent, DamageEvent, class APawn*, PawnInstigator, class AActor*, DamageCauser);
+
 UCLASS(Abstract)
 class AShooterCharacter : public ACharacter
 {
@@ -488,6 +491,10 @@ protected:
 protected:
 	/** Returns Mesh1P subobject **/
 	FORCEINLINE USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
+
+public:
+	// @CIRCUIT addition
+	FOnCharacterDeath OnCharacterDeath;
 };
 
 

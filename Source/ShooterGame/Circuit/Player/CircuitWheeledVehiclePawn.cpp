@@ -143,6 +143,20 @@ void ACircuitWheeledVehiclePawn::PlayerExitVehicle(ACircuitCharacter* ExitingPla
 	TestCapsule->DestroyComponent();
 }
 
+void ACircuitWheeledVehiclePawn::RespondToDriverDeath(class AShooterCharacter* DeadCharacter, float KillingDamage, struct FDamageEvent DamageEvent, class APawn* PawnInstigator, class AActor* DamageCauser) {
+	// @TODO - Change me when "PawnExitVehicle" is made
+				// @TODO - Move all this to "PawnExitVehicle" function
+	if (CanPlayerExitVehicle(DrivingPawn)) {
+		PlayerExitVehicle(DrivingPawn);
+	}
+	DrivingPawn->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	DrivingPawn->OnCharacterDeath.RemoveDynamic(this, &ACircuitWheeledVehiclePawn::RespondToDriverDeath);
+
+	Controller->Possess(DrivingPawn);
+	DrivingPawn = nullptr;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Input
 
@@ -173,16 +187,20 @@ void ACircuitWheeledVehiclePawn::OnUse_Implementation(ACircuitCharacter* Instiga
 	}
 	else {
 		if (DrivingPawn == nullptr) {
+			// @TODO - Move to "PawnEnterVehicle" function
 			DrivingPawn = InstigatingPlayer;
-			//DrivingPawn->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			//DrivingPawn->GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-			//DrivingPawn->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
-			//DrivingPawn->GetRootComponent()->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform, "Seat");
+			DrivingPawn->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			DrivingPawn->GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			DrivingPawn->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
+			DrivingPawn->GetRootComponent()->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, "Seat");
+
+			DrivingPawn->OnCharacterDeath.AddDynamic(this, &ACircuitWheeledVehiclePawn::RespondToDriverDeath);
 
 			DrivingPawn->Controller->Possess(this);
 			//OnStartEnter(InstigatingPlayer);
 		}
 		else {
+			// @TODO - Move all this to "PawnExitVehicle" function
 			if (CanPlayerExitVehicle(DrivingPawn)) {
 				PlayerExitVehicle(DrivingPawn);
 			}
@@ -190,6 +208,9 @@ void ACircuitWheeledVehiclePawn::OnUse_Implementation(ACircuitCharacter* Instiga
 			DrivingPawn->GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
 			DrivingPawn->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+			DrivingPawn->OnCharacterDeath.RemoveDynamic(this, &ACircuitWheeledVehiclePawn::RespondToDriverDeath);
+
 			Controller->Possess(DrivingPawn);
 			DrivingPawn = nullptr;
 

@@ -3,20 +3,49 @@
 #include "ShooterGame.h"
 #include "Circuit/Components/CircuitSkeletalMeshComponent.h"
 
+UCircuitSkeletalMeshComponent::UCircuitSkeletalMeshComponent() {
+	SetIsReplicated(true);
+}
+
+void UCircuitSkeletalMeshComponent::BeginPlay() {
+	Super::BeginPlay();
+}
+
+// Called every frame
+void UCircuitSkeletalMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
+
 /////////////////////////////////////////////////////////////////////////
 // Property Replication
+
+void UCircuitSkeletalMeshComponent::OnRep_CollisionEnabledRep() {
+	Super::SetCollisionEnabled(CollisionEnabledRep);
+}
 
 void UCircuitSkeletalMeshComponent::SetCollisionEnabled(ECollisionEnabled::Type NewType) {
 	if (!GetWorld() || !GetWorld()->IsGameWorld()) {
 		return;
 	}
-	Multi_SetCollisionEnabled(NewType);
+
+	// Client only, pass new value to server.
+	if (GetOwner()->GetLocalRole() != ENetRole::ROLE_Authority) {
+		ServerChangeCollisionEnabled(NewType);
+	}
+	else {
+		CollisionEnabledRep = NewType;
+		Super::SetCollisionEnabled(NewType);
+	}
 }
 
-bool UCircuitSkeletalMeshComponent::Multi_SetCollisionEnabled_Validate(ECollisionEnabled::Type NewType) {
-	return true;
+void UCircuitSkeletalMeshComponent::ServerChangeCollisionEnabled_Implementation(ECollisionEnabled::Type NewType) {
+	CollisionEnabledRep = NewType;
 }
 
-void UCircuitSkeletalMeshComponent::Multi_SetCollisionEnabled_Implementation(ECollisionEnabled::Type NewType) {
-	Super::SetCollisionEnabled(NewType);
+void UCircuitSkeletalMeshComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(UCircuitSkeletalMeshComponent, CollisionEnabledRep);
 }
