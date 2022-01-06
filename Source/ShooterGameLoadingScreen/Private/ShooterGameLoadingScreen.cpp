@@ -31,7 +31,7 @@ public:
 
 	void Construct(const FArguments& InArgs)
 	{
-		static const FName LoadingScreenName(TEXT("/Game/UI/Menu/LoadingScreen.LoadingScreen"));
+		static const FName LoadingScreenName(TEXT("/Game/Circuit/UI/LoadingScreen.LoadingScreen"));
 
 		//since we are not using game styles here, just load one image
 		LoadingScreenBrush = MakeShareable( new FShooterGameLoadingScreenBrush( LoadingScreenName, FVector2D(1920,1080) ) );

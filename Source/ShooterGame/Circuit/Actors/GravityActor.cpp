@@ -58,7 +58,7 @@ void AGravityActor::BeginOverlap(UPrimitiveComponent* OverlappedComponent,
     
     
     if (GravComponent) {
-        UE_LOG(LogTemp, Warning, TEXT("[%f] AGravityActor BeginOverlap: %s"), GetWorld()->GetRealTimeSeconds(), *OtherComp->GetName());
+        //UE_LOG(LogTemp, Warning, TEXT("[%f] AGravityActor BeginOverlap: %s"), GetWorld()->GetRealTimeSeconds(), *OtherComp->GetName());
         GravComponent->GravitySettings.GravityDirection = GravityDirection;
     }
 }
@@ -80,6 +80,6 @@ void AGravityActor::EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
         }
     }
     if (GravComponent) {
-        GravComponent->GravitySettings.GravityDirection = FVector(0.0f, 0.0f, 1.0f);
+        GravComponent->GravitySettings.GravityDirection = FVector(0.0f, 0.0f, -1.0f);
     }
 }

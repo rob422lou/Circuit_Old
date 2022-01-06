@@ -90,7 +90,8 @@ class AShooterCharacter : public ACharacter
 	*
 	* @param Weapon	Weapon to equip
 	*/
-	void EquipWeapon(class AShooterWeapon* Weapon);
+	// @CIRCUIT - Added virtual
+	virtual void EquipWeapon(class AShooterWeapon* Weapon);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Weapon usage
@@ -169,13 +170,14 @@ class AShooterCharacter : public ACharacter
 	void LookUpAtRate(float Val);
 
 	/** player pressed start fire action */
-	void OnStartFire();
+	// @CIRCUIT - Added virtual
+	virtual void OnStartFire();
 
 	/** player released start fire action */
-	void OnStopFire();
+	virtual void OnStopFire();
 
-	/** @CIRCUIT - added virtual */
 	/** player pressed targeting action */
+	/** @CIRCUIT - added virtual */
 	virtual void OnStartTargeting();
 
 	/** @CIRCUIT - added virtual */
@@ -199,10 +201,12 @@ class AShooterCharacter : public ACharacter
 	void OnStopJump();
 
 	/** player pressed run action */
-	void OnStartRunning();
+	/** @CIRCUIT - added virtual */
+	virtual void OnStartRunning();
 
 	/** player pressed toggled run action */
-	void OnStartRunningToggle();
+	/** @CIRCUIT - added virtual */
+	virtual void OnStartRunningToggle();
 
 	/** player released run action */
 	void OnStopRunning();
@@ -294,7 +298,8 @@ protected:
 	TArray<TSubclassOf<class AShooterWeapon> > DefaultInventoryClasses;
 
 	/** weapons in inventory */
-	UPROPERTY(Transient, Replicated)
+	// @CIRCUIT - Added BlueprintReadWrite
+	UPROPERTY(BlueprintReadWrite, Transient, Replicated)
 	TArray<class AShooterWeapon*> Inventory;
 
 	/** currently equipped weapon */

@@ -762,9 +762,10 @@ void UShooterGameInstance::BeginMainMenuState()
 	// player 0 gets to own the UI
 	ULocalPlayer* const Player = GetFirstGamePlayer();
 
-	MainMenuUI = MakeShareable(new FShooterMainMenu());
-	MainMenuUI->Construct(this, Player);
-	MainMenuUI->AddMenuToGameViewport();
+	// @CIRCUIT - Commented out
+	//MainMenuUI = MakeShareable(new FShooterMainMenu());
+	//MainMenuUI->Construct(this, Player);
+	//MainMenuUI->AddMenuToGameViewport();
 
 #if !SHOOTER_CONSOLE_UI
 	// The cached unique net ID is usually set on the welcome screen, but there isn't
@@ -781,6 +782,8 @@ void UShooterGameInstance::BeginMainMenuState()
 
 void UShooterGameInstance::EndMainMenuState()
 {
+	// @CIRCUIT - return added. 
+	return;
 	if (MainMenuUI.IsValid())
 	{
 		MainMenuUI->RemoveMenuFromGameViewport();
