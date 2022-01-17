@@ -102,6 +102,9 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Others
 
+
+	class UCustomGravityComponent* GravityComponent;
+
 	/** player noclip action */
 	UFUNCTION(BlueprintNativeEvent, Category = PlayerAbility)
 	void OnNoclip();

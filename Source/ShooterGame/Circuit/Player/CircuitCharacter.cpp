@@ -2,12 +2,18 @@
 
 #include "ShooterGame.h"
 #include "Player/ShooterCharacterMovement.h"
+#include "Circuit/Player/CircuitCharacterMovement.h"
+#include "Circuit/Components/CustomGravityComponent.h"
 #include "Public/Weapons/ShooterWeapon.h"
 #include "Circuit/Player/CircuitCharacter.h"
 
 ACircuitCharacter::ACircuitCharacter(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UShooterCharacterMovement>(ACharacter::CharacterMovementComponentName).SetDefaultSubobjectClass<UCircuitSkeletalMeshComponent>(ACharacter::MeshComponentName).SetDefaultSubobjectClass<UCircuitCapsuleComponent>(ACharacter::CapsuleComponentName))
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UCircuitCharacterMovement>(ACharacter::CharacterMovementComponentName).SetDefaultSubobjectClass<UCircuitSkeletalMeshComponent>(ACharacter::MeshComponentName).SetDefaultSubobjectClass<UCircuitCapsuleComponent>(ACharacter::CapsuleComponentName))
 {
+	GravityComponent = ObjectInitializer.CreateDefaultSubobject<UCustomGravityComponent>(this, TEXT("GravityComponent"));
+	GravityComponent->SetupAttachment(GetCapsuleComponent());
+	GravityComponent->EffectedCharacter = this;
+
 	MaxUseDistance = 2500.0f;
 }
 
@@ -17,6 +23,8 @@ void ACircuitCharacter::Tick(float DeltaSeconds)
 
 	if (Controller && Controller->IsLocalController())
 	{
+		GravityComponent->EffectedCharacter = this;
+
 		AActor* usable = GetActorInView();
 
 		// End Focus

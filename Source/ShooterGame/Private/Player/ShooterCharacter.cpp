@@ -8,6 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 #include "Sound/SoundNodeLocalPlayer.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "AudioThread.h"
 
 static int32 NetVisualizeRelevancyTestPoints = 0;
@@ -57,6 +58,14 @@ AShooterCharacter::AShooterCharacter(const FObjectInitializer& ObjectInitializer
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(COLLISION_PROJECTILE, ECR_Block);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(COLLISION_WEAPON, ECR_Ignore);
+
+	// @CIRCUIT - addition
+	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("MainCamera0"));
+	if (Camera)
+	{
+		Camera->FieldOfView = 90.0f;
+		Camera->SetupAttachment(GetCapsuleComponent(), "");
+	}
 
 	TargetingSpeedModifier = 0.5f;
 	bIsTargeting = false;
@@ -214,12 +223,15 @@ void AShooterCharacter::OnCameraUpdate(const FVector& CameraLocation, const FRot
 
 	const FRotator RotCameraPitch(CameraRotation.Pitch, 0.0f, 0.0f);
 	const FRotator RotCameraYaw(0.0f, CameraRotation.Yaw, 0.0f);
+	const FRotator RotCameraRoll(0.0f, 0.0f, CameraRotation.Roll); // @CIRCUIT - addition
 
 	const FMatrix LeveledCameraLS = FRotationTranslationMatrix(RotCameraYaw, CameraLocation) * LocalToWorld.Inverse();
 	const FMatrix PitchedCameraLS = FRotationMatrix(RotCameraPitch) * LeveledCameraLS;
+
 	const FMatrix MeshRelativeToCamera = DefMeshLS * LeveledCameraLS.Inverse();
 	const FMatrix PitchedMesh = MeshRelativeToCamera * PitchedCameraLS;
 
+	UE_LOG(LogTemp, Error, TEXT("[%f] AShooterCharacter PitchedMesh.Rotator() %f %f %f"), GetWorld()->GetRealTimeSeconds(), PitchedMesh.Rotator().Pitch, PitchedMesh.Rotator().Yaw, PitchedMesh.Rotator().Roll);
 	Mesh1P->SetRelativeLocationAndRotation(PitchedMesh.GetOrigin(), PitchedMesh.Rotator());
 }
 
@@ -856,9 +868,9 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAxis("MoveForward", this, &AShooterCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AShooterCharacter::MoveRight);
 	PlayerInputComponent->BindAxis("MoveUp", this, &AShooterCharacter::MoveUp);
-	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
+	PlayerInputComponent->BindAxis("Turn", this, &AShooterCharacter::AddTurnInput);
 	PlayerInputComponent->BindAxis("TurnRate", this, &AShooterCharacter::TurnAtRate);
-	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
+	PlayerInputComponent->BindAxis("LookUp", this, &AShooterCharacter::AddLookUpInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AShooterCharacter::LookUpAtRate);
 
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
@@ -888,7 +900,6 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
 }
 
-
 void AShooterCharacter::FireTrigger(float Val)
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
@@ -906,11 +917,27 @@ void AShooterCharacter::MoveForward(float Val)
 {
 	if (Controller && Val != 0.f)
 	{
+		/*
 		// Limit pitch when walking or falling
 		const bool bLimitRotation = (GetCharacterMovement()->IsMovingOnGround() || GetCharacterMovement()->IsFalling());
 		const FRotator Rotation = bLimitRotation ? GetActorRotation() : Controller->GetControlRotation();
 		const FVector Direction = FRotationMatrix(Rotation).GetScaledAxis(EAxis::X);
 		AddMovementInput(Direction, Val);
+		*/
+
+		// @CIRCUIT - addition
+		const FVector UpDirection = GetActorUpVector();
+		const FVector CameraForward = Camera->GetForwardVector();
+		const float Dot = FVector::DotProduct(UpDirection, CameraForward);
+		FVector CurrentForwardDirection;
+
+		if (FMath::Abs(Dot) < 1 - SMALL_NUMBER)
+		{
+			CurrentForwardDirection = FVector::VectorPlaneProject(CameraForward, GetActorUpVector());
+		}
+
+		const float ControlValue = GetCharacterMovement()->IsMovingOnGround() ? Val : Val * GetCharacterMovement()->AirControl;
+		AddMovementInput(CurrentForwardDirection.GetSafeNormal(), ControlValue);
 	}
 }
 
@@ -918,9 +945,24 @@ void AShooterCharacter::MoveRight(float Val)
 {
 	if (Val != 0.f)
 	{
-		const FQuat Rotation = GetActorQuat();
-		const FVector Direction = FQuatRotationMatrix(Rotation).GetScaledAxis(EAxis::Y);
-		AddMovementInput(Direction, Val);
+		//const FQuat Rotation = GetActorQuat();
+		//const FVector Direction = FQuatRotationMatrix(Rotation).GetScaledAxis(EAxis::Y);
+		//AddMovementInput(Direction, Val);
+
+		// @CIRCUIT - addition
+		const FVector UpDirection = GetActorUpVector();
+		const FVector CameraRight = Camera->GetRightVector();
+		const float Dot = FVector::DotProduct(UpDirection, CameraRight);
+		FVector CurrentRightDirection;
+
+		if (FMath::Abs(Dot) < 1 - SMALL_NUMBER)
+		{
+			CurrentRightDirection = FVector::VectorPlaneProject(CameraRight, UpDirection);
+		}
+
+		const float ControlValue = GetCharacterMovement()->IsMovingOnGround() ? Val : Val * GetCharacterMovement()->AirControl;
+
+		AddMovementInput(CurrentRightDirection.GetSafeNormal(), ControlValue);
 	}
 }
 
@@ -1325,4 +1367,129 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 	RelevancyCheckPoints.Add(FVector(BoundingBox.Max.X, BoundingBox.Max.Y - YDiff, BoundingBox.Max.Z));
 	RelevancyCheckPoints.Add(FVector(BoundingBox.Max.X - XDiff, BoundingBox.Max.Y - YDiff, BoundingBox.Max.Z));
 	RelevancyCheckPoints.Add(BoundingBox.Max);
+}
+
+// @CIRCUIT - Addition
+void AShooterCharacter::AddTurnInput(float Val) {
+	if (Val != 0.f && Controller && Controller->IsLocalPlayerController())
+	{
+		AddActorLocalRotation(FRotator(0.0f, Val, 0.0f));
+		/*
+		AActor* PC = CastChecked<AActor>(Controller);
+		APlayerController* MyPC = CastChecked <APlayerController>(Controller);
+
+		//UE_LOG(LogTemp, Error, TEXT("[%f] AShooterCharacter AddTurnInput Roll %f %f"), GetWorld()->GetRealTimeSeconds(), PC->GetActorRotation().Roll, PC->GetActorRotation().Yaw);
+		//UE_LOG(LogTemp, Error, TEXT("[%f] AShooterCharacter AddTurnInput MyPC Roll %f %f"), GetWorld()->GetRealTimeSeconds(), MyPC->GetControlRotation().Roll, MyPC->GetControlRotation().Yaw);
+		//UE_LOG(LogTemp, Error, TEXT("[%f] AShooterCharacter AddTurnInput GetCapsuleComponent Roll %f"), GetWorld()->GetRealTimeSeconds(), GetCapsuleComponent()->GetRelativeRotation().Roll);
+		//MyPC->BlendedTargetViewRotation = FRotator(MyPC->GetControlRotation().Pitch, MyPC->GetControlRotation().Yaw, GetCapsuleComponent()->GetRelativeRotation().Roll);
+		//MyPC->SetControlRotation(FRotator(MyPC->GetControlRotation().Pitch, MyPC->GetControlRotation().Yaw + Val, GetCapsuleComponent()->GetRelativeRotation().Roll));
+		//PC->SetControlRotation(GetCapsuleComponent()->GetComponentRotation());
+		//MyPC->AddYawInput(Val);
+
+
+		FQuat OldControlRotation = MyPC->GetControlRotation().Quaternion();
+		//FQuat ControlRotation = MyPC->GetControlRotation().Quaternion();
+		//ControlRotation *= FRotator(0.0f, Val, 0.0f).Quaternion();
+
+		//ControlRotation = (ControlRotation * OldControlRotation.Inverse());
+
+		//MyPC->AddPitchInput(ControlRotation.Rotator().Pitch);
+		//MyPC->AddYawInput(ControlRotation.Rotator().Yaw);
+		//MyPC->AddRollInput(ControlRotation.Rotator().Roll);
+
+		AddControllerYawInput(Val);
+
+		FQuat Euler = FRotator(0, Val, 0).Quaternion();
+		FQuat ControlRotation = ((MyPC->GetControlRotation().Quaternion() * Euler) * MyPC->GetControlRotation().Quaternion().Inverse());
+
+		//MyPC->AddPitchInput(ControlRotation.Rotator().Pitch);
+		//MyPC->AddYawInput(ControlRotation.Rotator().Yaw);
+		//MyPC->AddRollInput(ControlRotation.Rotator().Roll);
+
+
+		//FQuat LocalQuat = FRotator(0.0f, Val, 0.0f).Quaternion();
+		//FQuat ControlRotation = MyPC->GetControlRotation().Quaternion() * (MyPC->GetControlRotation().Quaternion().Inverse() * LocalQuat) * MyPC->GetControlRotation().Quaternion();
+		//FQuat ControlRotation = MyPC->GetControlRotation().Quaternion() * LocalQuat;
+		//ControlRotation = ControlRotation.Inverse() * MyPC->GetControlRotation().Quaternion();
+		//UE_LOG(LogTemp, Error, TEXT("[%f] AShooterCharacter Yaw 1 %f"), GetWorld()->GetRealTimeSeconds(), MyPC->GetRootComponent()->GetRelativeRotation().Yaw);
+
+		//MyPC->SetControlRotation((MyPC->GetControlRotation().Quaternion() * FQuat(FVector(1, 0, 0), Val)).Rotator());
+
+		//UE_LOG(LogTemp, Error, TEXT("[%f] AShooterCharacter Yaw 2 %f %f %f"), GetWorld()->GetRealTimeSeconds(), GetActorForwardVector().X, GetActorForwardVector().Y, GetActorForwardVector().Z);
+		
+		//AController* Controller = CharacterOwner ? CharacterOwner->Controller : NULL;
+
+		GEngine->AddOnScreenDebugMessage(-1, 5.0, FColor::Red, FString("Rotation"));
+		FRotator UpLookAt = UKismetMathLibrary::MakeRotFromZX(GetActorLocation() * -1, GetActorForwardVector());
+		UpLookAt.Yaw = 0.0f;
+		FQuat QuattedRot = UpLookAt.Quaternion();
+		FRotator MyControllerRot = MyPC->GetControlRotation();
+		MyControllerRot.Pitch = 0.0f;
+		MyControllerRot.Roll = 0.0f;
+		MyControllerRot.Yaw += Val;
+		FQuat QuattedRotTwo = MyControllerRot.Quaternion();
+		FRotator FinalRotator = (QuattedRotTwo * QuattedRot).Rotator();
+		MyPC->SetControlRotation(FinalRotator);
+
+		//FQuat Euler = FRotator(0, Val, 0).Quaternion();
+		//FQuat ControlRotation = ((MyPC->GetControlRotation().Quaternion() * Euler) * MyPC->GetControlRotation().Quaternion().Inverse());
+
+		//MyPC->AddPitchInput(ControlRotation.Rotator().Pitch);
+		//MyPC->AddYawInput(ControlRotation.Rotator().Yaw);
+		//MyPC->AddRollInput(ControlRotation.Rotator().Roll);
+
+		*/
+	}
+}
+
+// Weird issue with  up/down look
+void AShooterCharacter::AddLookUpInput(float Val) {
+	if (Val != 0.f && Controller && Controller->IsLocalPlayerController())
+	{
+		/*
+		APlayerController* MyPC = CastChecked <APlayerController>(Controller);
+
+		FQuat OldControlRotation = MyPC->GetControlRotation().Quaternion();
+		//FQuat ControlRotation = MyPC->GetControlRotation().Quaternion();
+		//ControlRotation *= FRotator(Val, 0.0f, 0.0f).Quaternion();
+
+		//UE_LOG(LogTemp, Error, TEXT("[%f] AShooterCharacter OldControlRotation.Rotator().Pitch %f %f %f"), GetWorld()->GetRealTimeSeconds(), OldControlRotation.Rotator().Pitch, OldControlRotation.Rotator().Yaw, OldControlRotation.Rotator().Roll);
+
+		//ControlRotation = ((FRotator(Val, 0.0f, 0.0f).Quaternion()  * ControlRotation.ax) * OldControlRotation.Inverse());
+		//ControlRotation.Normalize();
+		//MyPC->AddPitchInput(ControlRotation.Rotator().Pitch);
+		//MyPC->AddYawInput(ControlRotation.Rotator().Yaw);
+		//MyPC->AddRollInput(ControlRotation.Rotator().Roll);
+
+		AddControllerPitchInput(Val);
+
+
+		// Rotation to be applied in local space
+		FQuat Euler = FRotator(Val,0,0).Quaternion();
+
+		// (Current world rotation * local rotation) * inverse of world rotation
+		FQuat ControlRotation = ((MyPC->GetControlRotation().Quaternion() * Euler) * MyPC->GetControlRotation().Quaternion().Inverse());
+
+		//MyPC->AddPitchInput(ControlRotation.Rotator().Pitch);
+		//MyPC->AddYawInput(ControlRotation.Rotator().Yaw);
+		//MyPC->AddRollInput(ControlRotation.Rotator().Roll);
+
+
+
+		// This behaves the same os OG addpitchinput.
+		//FQuat PitchQuatLocal = FQuat(-GetActorRightVector(), Val / 100.0f); // May need to take negative of right vector, else pitch might be upside down
+		//FQuat PitchQuatWorld = GetActorTransform().InverseTransformRotation(PitchQuatLocal);
+		//FRotator PitchRotWorld = PitchQuatWorld.Rotator();
+		//UE_LOG(LogTemp, Error, TEXT("[%f] AShooterCharacter GetActorRightVector() %f %f %f"), GetWorld()->GetRealTimeSeconds(), GetActorRightVector().X, GetActorRightVector().Y, GetActorRightVector().Z);
+		//MyPC->AddPitchInput(PitchRotWorld.Pitch);
+		//MyPC->AddYawInput(PitchRotWorld.Yaw);
+		//MyPC->AddRollInput(PitchRotWorld.Roll);
+		*/
+
+		FRotator CameraRelativeRot = Camera->GetRelativeRotation();
+		float CameraNewPitch = FMath::ClampAngle(CameraRelativeRot.Pitch + Val * -1.0f, -89.0f, 89.0f);
+		CameraRelativeRot.Pitch = CameraNewPitch;
+		Camera->SetRelativeRotation(CameraRelativeRot);
+
+	}
 }

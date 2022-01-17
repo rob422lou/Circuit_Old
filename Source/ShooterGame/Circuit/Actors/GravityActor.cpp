@@ -25,6 +25,29 @@ void AGravityActor::BeginPlay()
             Cast<UPrimitiveComponent>(Components[i])->OnComponentEndOverlap.AddDynamic(this, &AGravityActor::EndOverlap);
         }
     }
+
+    // Delay is needed because of the order UE generates objects
+    FTimerHandle TimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
+        {
+            TSet<UPrimitiveComponent*> OverlappingComponents;
+            GetOverlappingComponents(OverlappingComponents);
+
+            for (UPrimitiveComponent* Element : OverlappingComponents)
+            {
+                TArray<USceneComponent*> Components = Element->GetAttachChildren();
+
+                for (size_t i = 0; i < Components.Num(); i++)
+                {
+                    UCustomGravityComponent* GravityComp = Cast<UCustomGravityComponent>(Components[i]);
+                    if (GravityComp) {
+                        // @TODO - Doesn't use BeginOverlap(), idk if this matters
+                        GravityComp->AddToGravityFieldArray(this);
+                        break;
+                    }
+                }
+            }
+        }, 0.1f, false);
 }
 
 // Called every frame
@@ -47,10 +70,14 @@ void AGravityActor::BeginOverlap(UPrimitiveComponent* OverlappedComponent,
 
     UCustomGravityComponent* GravComponent = nullptr;
 
+    //UE_LOG(LogTemp, Warning, TEXT("[%f] AGravityActor BeginOverlap Change 1 %s"), GetWorld()->GetRealTimeSeconds(), *OtherComp->GetName());
+
     TArray<USceneComponent*> Components = OtherComp->GetAttachChildren();
     for (size_t i = 0; i < Components.Num(); i++)
     {
+        //UE_LOG(LogTemp, Warning, TEXT("[%f] AGravityActor BeginOverlap Change 2 %s"), GetWorld()->GetRealTimeSeconds(), *Components[i]->GetName());
         if (Cast<UCustomGravityComponent>(Components[i])) {
+            //UE_LOG(LogTemp, Warning, TEXT("[%f] AGravityActor BeginOverlap Change 3 %s"), GetWorld()->GetRealTimeSeconds(), *OtherComp->GetName());
             GravComponent = Cast<UCustomGravityComponent>(Components[i]);
             break;
         }
@@ -58,8 +85,7 @@ void AGravityActor::BeginOverlap(UPrimitiveComponent* OverlappedComponent,
     
     
     if (GravComponent) {
-        //UE_LOG(LogTemp, Warning, TEXT("[%f] AGravityActor BeginOverlap: %s"), GetWorld()->GetRealTimeSeconds(), *OtherComp->GetName());
-        GravComponent->GravitySettings.GravityDirection = GravityDirection;
+        GravComponent->AddToGravityFieldArray(this);
     }
 }
 
@@ -80,6 +106,6 @@ void AGravityActor::EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
         }
     }
     if (GravComponent) {
-        GravComponent->GravitySettings.GravityDirection = FVector(0.0f, 0.0f, -1.0f);
+        GravComponent->RemoveFromGravityFieldArray(this);
     }
 }

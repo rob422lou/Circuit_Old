@@ -500,6 +500,14 @@ protected:
 public:
 	// @CIRCUIT addition
 	FOnCharacterDeath OnCharacterDeath;
+
+	/** the main camera associated with this Pawn . */
+	UPROPERTY(Category = "Custom Pawn", VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UCameraComponent* Camera;
+
+	void AddTurnInput(float Val);
+
+	void AddLookUpInput(float Val);
 };
 
 
