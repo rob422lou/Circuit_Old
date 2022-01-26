@@ -45,10 +45,10 @@ public:
 	FVector GravityDirection;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bUseAccel;
+	bool bIsAdditive;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bForceSubStepping;
+	bool bHasFalloff;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TEnumAsByte<EGravityType::Type> GravityType;
@@ -57,17 +57,15 @@ public:
 	{
 		GravityPower = 980.0f;
 		GravityDirection = FVector(0.0f, 0.0f, -1.0f);
-		bUseAccel = true;
-		bForceSubStepping = true;
+		bIsAdditive = false;
 		GravityType = EGravityType::EGT_Default;
 	}
 
-	FGravitySettings(float NewGravityPower, FVector NewGravityDirection, bool bNewAccel, bool bShouldUseStepping, TEnumAsByte<EGravityType::Type> NewGravityType)
+	FGravitySettings(float NewGravityPower, FVector NewGravityDirection, TEnumAsByte<EGravityType::Type> NewGravityType)
 	{
 		GravityPower = NewGravityPower;
 		GravityDirection = NewGravityDirection;
-		bUseAccel = bNewAccel;
-		bForceSubStepping = bShouldUseStepping;
+		bIsAdditive = false; // @TODO - fix this
 		GravityType = NewGravityType;
 	}
 

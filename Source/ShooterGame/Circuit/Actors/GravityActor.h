@@ -29,7 +29,7 @@ public:
 	FGravitySettings GravitySettings;
 
 	UFUNCTION()
-		void BeginOverlap(UPrimitiveComponent* OverlappedComponent,
+	void BeginOverlap(UPrimitiveComponent* OverlappedComponent,
 			AActor* OtherActor,
 			UPrimitiveComponent* OtherComp,
 			int32 OtherBodyIndex,
@@ -37,5 +37,5 @@ public:
 			const FHitResult& SweepResult);
 
 	UFUNCTION()
-		void EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	void EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 };

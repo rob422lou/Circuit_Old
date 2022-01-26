@@ -19,4 +19,5 @@ bool UCircuitCapsuleComponent::Multi_SetCollisionEnabled_Validate(ECollisionEnab
 
 void UCircuitCapsuleComponent::Multi_SetCollisionEnabled_Implementation(ECollisionEnabled::Type NewType) {
 	Super::SetCollisionEnabled(NewType);
+	//FComponentBeginOverlapSignature
 }

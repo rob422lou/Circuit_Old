@@ -16,7 +16,7 @@ AGravityActor::AGravityActor()
 void AGravityActor::BeginPlay()
 {
 	Super::BeginPlay();
-
+    /*
     TArray<UActorComponent*> Components = GetComponentsByClass(UPrimitiveComponent::StaticClass());
     for (size_t i = 0; i < Components.Num(); i++)
     {
@@ -48,6 +48,7 @@ void AGravityActor::BeginPlay()
                 }
             }
         }, 0.1f, false);
+        */
 }
 
 // Called every frame
@@ -69,7 +70,7 @@ void AGravityActor::BeginOverlap(UPrimitiveComponent* OverlappedComponent,
     }
 
     UCustomGravityComponent* GravComponent = nullptr;
-
+    /*
     //UE_LOG(LogTemp, Warning, TEXT("[%f] AGravityActor BeginOverlap Change 1 %s"), GetWorld()->GetRealTimeSeconds(), *OtherComp->GetName());
 
     TArray<USceneComponent*> Components = OtherComp->GetAttachChildren();
@@ -85,12 +86,19 @@ void AGravityActor::BeginOverlap(UPrimitiveComponent* OverlappedComponent,
     
     
     if (GravComponent) {
-        GravComponent->AddToGravityFieldArray(this);
+        if (GravitySettings.bIsAdditive) {
+            GravComponent->AddToAdditiveGravityFieldArray(this);
+        }
+        else {
+            GravComponent->AddToGravityFieldArray(this);
+        }
     }
+    */
 }
 
 void AGravityActor::EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
+    /*
     if (!OtherComp) {
         return;
     }
@@ -106,6 +114,12 @@ void AGravityActor::EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
         }
     }
     if (GravComponent) {
-        GravComponent->RemoveFromGravityFieldArray(this);
+        if (GravitySettings.bIsAdditive) {
+            GravComponent->RemoveFromAdditiveGravityFieldArray(this);
+        }
+        else {
+            GravComponent->RemoveFromGravityFieldArray(this);
+        }
     }
+    */
 }

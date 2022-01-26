@@ -70,7 +70,7 @@ void UCustomGravityComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		return;
 	}
 
-	if (GravityFieldArray.Num() == 0) {
+	if (GravityFieldArray.Num() == 0 && AdditiveGravityFieldArray.Num() == 0) {
 		return;
 	}
 
@@ -88,120 +88,45 @@ void UCustomGravityComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	LastRotation = GetComponentRotation();
 
-	FVector GravityForce;
+	CalculateCurrentGravity();
 
 	if (bIsSkeletalMesh) {
-		switch (GravitySettings.GravityType)
-		{
-		case EGravityType::EGT_Default:
-			// @TODO - Make SetEnableGravity repnotify on skele/vehicle/staticmeshes
-			EffectedSkeletalComponent->SetEnableGravity(true);
-			return;
-			break;
-		case EGravityType::EGT_Custom:
-			EffectedSkeletalComponent->SetEnableGravity(false);
-			break;
-		case EGravityType::EGT_Directional:
-			GravityForce = GravitySettings.GravityDirection.GetSafeNormal() * GravitySettings.GravityPower * ComponentWeight;
-			EffectedSkeletalComponent->SetEnableGravity(false);
-			break;
-		case EGravityType::EGT_Point:
-			ComponentWeight = 1.0f;
-			// @TODO - Idk why this is needed, but it is. Please find out why
-			GravityForce *= 46;
-			EffectedSkeletalComponent->SetEnableGravity(false);
-			break;
-		case EGravityType::EGT_Planet:
-			EffectedSkeletalComponent->SetEnableGravity(false);
-			break;
-		default:
-			break;
-		}
-
 		TArray<FName> BoneNames;
 		EffectedSkeletalComponent->GetBoneNames(BoneNames);
 
 		for (size_t i = 0; i < BoneNames.Num(); i++)
 		{
 			if (EffectedSkeletalComponent->GetBodyInstance(BoneNames[i])) {
-				if (GravitySettings.GravityType == EGravityType::EGT_Point) {
-					GravityForce = (GravityFieldArray[0]->GetActorLocation() - EffectedSkeletalComponent->GetBoneLocation(BoneNames[i])).GetSafeNormal() * GravitySettings.GravityPower * ComponentWeight;
-				}
-				EffectedSkeletalComponent->GetBodyInstance(BoneNames[i])->AddForce(GravityForce * EffectedSkeletalComponent->GetBodyInstance(BoneNames[i])->GetBodyMass());
+				EffectedSkeletalComponent->GetBodyInstance(BoneNames[i])->AddForce(GetGravityDirection() * GetGravityStrength() * EffectedSkeletalComponent->GetBodyInstance(BoneNames[i])->GetBodyMass());
 			}
 		}
 	}
 	else if (EffectedCharacter) {
-		switch (GravitySettings.GravityType)
-		{
-		case EGravityType::EGT_Default:
-			// @TODO - Make SetEnableGravity repnotify on skele/vehicle/staticmeshes
-			//EffectedComponent->SetEnableGravity(true);
-			return;
-			break;
-		case EGravityType::EGT_Custom:
-			//EffectedComponent->SetEnableGravity(false);
-			break;
-		case EGravityType::EGT_Directional:
-			//GravityForce = GravitySettings.GravityDirection.GetSafeNormal() * GravitySettings.GravityPower * ComponentWeight;
-			break;
-		case EGravityType::EGT_Point:
-			//UE_LOG(LogTemp, Warning, TEXT("[%f] UCustomGravityComponent TickComponent HERE"), GetWorld()->GetRealTimeSeconds());
-			//GravityForce = (GravityFieldArray[0]->GetActorLocation() - GetComponentLocation()).GetSafeNormal() * GravitySettings.GravityPower * ComponentWeight;
-			// This is just for debug purposes
-			GravitySettings.GravityDirection = (GravityFieldArray[0]->GetActorLocation() - GetComponentLocation()).GetSafeNormal();
-			break;
-		case EGravityType::EGT_Planet:
-			break;
-		default:
-			break;
-		}
+		//CalculateCharacterGravity();
 		return;
 	}
 	else {
-		switch (GravitySettings.GravityType)
-		{
-		case EGravityType::EGT_Default:
-			// @TODO - Make SetEnableGravity repnotify on skele/vehicle/staticmeshes
-			EffectedComponent->SetEnableGravity(true);
-			return;
-			break;
-		case EGravityType::EGT_Custom:
-			EffectedComponent->SetEnableGravity(false);
-			break;
-		case EGravityType::EGT_Directional:
-			GravityForce = GravitySettings.GravityDirection.GetSafeNormal() * GravitySettings.GravityPower * ComponentWeight;
-			EffectedComponent->SetEnableGravity(false);
-			break;
-		case EGravityType::EGT_Point:
-			GravityForce = (GravityFieldArray[0]->GetActorLocation() - GetComponentLocation()).GetSafeNormal() * GravitySettings.GravityPower * ComponentWeight;
-			EffectedComponent->SetEnableGravity(false);
-
-			// This is just for debug purposes
-			GravitySettings.GravityDirection = (GravityFieldArray[0]->GetActorLocation() - GetComponentLocation()).GetSafeNormal();
-			break;
-		case EGravityType::EGT_Planet:
-			EffectedComponent->SetEnableGravity(false);
-			break;
-		default:
-			break;
-		}
-
-		Cast<UPrimitiveComponent>(EffectedComponent->GetAttachmentRoot())->GetBodyInstance("", true)->AddForceAtPosition(GravityForce, EffectedComponent->GetComponentLocation(), GravitySettings.bForceSubStepping, false);
-		//Cast<UPrimitiveComponent>(EffectedComponent->GetAttachmentRoot())->GetBodyInstance("", true)->AddForce(GravityForce, GravitySettings.bForceSubStepping, false);
+		Cast<UPrimitiveComponent>(EffectedComponent->GetAttachmentRoot())->GetBodyInstance("", true)->AddForceAtPosition(GetGravityDirection() * GetGravityStrength() * ComponentWeight, EffectedComponent->GetComponentLocation(), true, false);
 	}
 }
 
-void UCustomGravityComponent::AddToGravityFieldArray(AGravityActor* FieldToAdd) {
+void UCustomGravityComponent::AddToGravityFieldArray(UBaseGravityComponent* FieldToAdd) {
 	GravityFieldArray.AddUnique(FieldToAdd);
 
 	if (GravityFieldArray.Num() == 1) {
 		//UE_LOG(LogTemp, Warning, TEXT("[%f] UCustomGravityComponent AddToGravityFieldArray Change Num %d"), GetWorld()->GetRealTimeSeconds(), GravityFieldArray.Num());
-		GravitySettings = GravityFieldArray[0]->GravitySettings;
+		CurrentGravityDirection = GravityFieldArray[0]->CalculateGravity(this->GetComponentLocation());
+
+		if (bIsSkeletalMesh) {
+			EffectedSkeletalComponent->SetEnableGravity(false);
+		}
+		else if (EffectedCharacter == nullptr) {
+			EffectedComponent->SetEnableGravity(false);
+		}
 	}
 }
 
-void UCustomGravityComponent::RemoveFromGravityFieldArray(AGravityActor* FieldToRemove) {
+void UCustomGravityComponent::RemoveFromGravityFieldArray(UBaseGravityComponent* FieldToRemove) {
 	int FieldIndex = GravityFieldArray.IndexOfByKey(FieldToRemove);
 
 	GravityFieldArray.Remove(FieldToRemove);
@@ -211,13 +136,83 @@ void UCustomGravityComponent::RemoveFromGravityFieldArray(AGravityActor* FieldTo
 			// Update current gravity to next in array
 			if (GravityFieldArray.Num() > 0) {
 				//UE_LOG(LogTemp, Warning, TEXT("[%f] UCustomGravityComponent RemoveFromGravityFieldArray Change Num %d"), GetWorld()->GetRealTimeSeconds(), GravityFieldArray.Num());
-				GravitySettings = GravityFieldArray[0]->GravitySettings;
-				//GravitySettings.GravityPower
+				CurrentGravityDirection = GravityFieldArray[0]->CalculateGravity(this->GetComponentLocation());
 			}
 			else {
-				GravitySettings.GravityType = EGravityType::EGT_Default;
-				GravitySettings.GravityDirection = FVector(0.0f, 0.0f, -1.0f);
+				CurrentGravityDirection = FVector(0.0f, 0.0f, -1.0f);
+
+				if (bIsSkeletalMesh) {
+					EffectedSkeletalComponent->SetEnableGravity(true);
+				}
+				else if (EffectedCharacter == nullptr) {
+					EffectedComponent->SetEnableGravity(true);
+				}
 			}
 		}
 	}
+}
+
+void UCustomGravityComponent::AddToAdditiveGravityFieldArray(UBaseGravityComponent* FieldToAdd) {
+	AdditiveGravityFieldArray.AddUnique(FieldToAdd);
+
+	if (bIsSkeletalMesh) {
+		EffectedSkeletalComponent->SetEnableGravity(false);
+	}
+	else if (EffectedCharacter == nullptr) {
+		EffectedComponent->SetEnableGravity(false);
+	}
+}
+
+void UCustomGravityComponent::RemoveFromAdditiveGravityFieldArray(UBaseGravityComponent* FieldToRemove) {
+	int AdditiveFieldIndex = AdditiveGravityFieldArray.IndexOfByKey(FieldToRemove);
+	int FieldIndex = GravityFieldArray.IndexOfByKey(FieldToRemove);
+
+	AdditiveGravityFieldArray.Remove(FieldToRemove);
+
+	if (FieldIndex != INDEX_NONE && AdditiveFieldIndex != INDEX_NONE) {
+		if (FieldIndex == 0 && AdditiveFieldIndex == 0) {
+			// Update current gravity to next in array
+			if (GravityFieldArray.Num() > 0) {
+				CurrentGravityDirection = GravityFieldArray[0]->CalculateGravity(this->GetComponentLocation());
+			}
+			else {
+				CurrentGravityDirection = FVector(0.0f, 0.0f, -1.0f);
+
+				if (bIsSkeletalMesh) {
+					EffectedSkeletalComponent->SetEnableGravity(true);
+				}
+				else if (EffectedCharacter == nullptr) {
+					EffectedComponent->SetEnableGravity(true);
+				}
+			}
+		}
+	}
+}
+
+void UCustomGravityComponent::CalculateCurrentGravity() {
+	if (GravityFieldArray.Num() == 0 && AdditiveGravityFieldArray.Num() == 0) {
+		return;
+	}
+
+	if (GravityFieldArray.Num() != 0) {
+		CurrentGravityDirection = GravityFieldArray[0]->CalculateGravity(this->GetComponentLocation());
+		CurrentGravityStrength = CurrentGravityDirection.Size();
+	}
+	else if (AdditiveGravityFieldArray.Num() != 0) {
+		FVector CalculatedGravity = FVector(0.0f, 0.0f, 0.0f);
+		for (size_t i = 0; i < AdditiveGravityFieldArray.Num(); i++)
+		{
+			CalculatedGravity += AdditiveGravityFieldArray[i]->CalculateGravity(this->GetComponentLocation());
+		}
+		CurrentGravityDirection = CalculatedGravity;
+		CurrentGravityStrength = CalculatedGravity.Size();
+	}
+}
+
+FVector UCustomGravityComponent::GetGravityDirection() {
+	return CurrentGravityDirection.GetSafeNormal();
+}
+
+float UCustomGravityComponent::GetGravityStrength() {
+	return CurrentGravityStrength;
 }

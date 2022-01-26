@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
 #include "Circuit/Actors/GravityActor.h"
+#include "Circuit/Components/Gravity/BaseGravityComponent.h"
 #include "Circuit/Player/CircuitCharacter.h"
 #include "Circuit/CircuitHelper.h"
 #include "CustomGravityComponent.generated.h"
@@ -35,22 +36,45 @@ public:
 
 	float ComponentWeight;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "Custom Gravity")
-	FGravitySettings GravitySettings;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "Gravity")
+	FVector CurrentGravityDirection;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "Gravity")
+	float CurrentGravityStrength;
 
 	UPROPERTY()
-	TArray<AGravityActor*> GravityFieldArray;
+	TArray<UBaseGravityComponent*> GravityFieldArray;
+
+	UPROPERTY()
+	TArray<UBaseGravityComponent*> AdditiveGravityFieldArray;
 
 	UFUNCTION()
-	void AddToGravityFieldArray(AGravityActor* FieldToAdd);
+	void AddToGravityFieldArray(UBaseGravityComponent* FieldToAdd);
 
 	UFUNCTION()
-	void RemoveFromGravityFieldArray(AGravityActor* FieldToRemove);
+	void RemoveFromGravityFieldArray(UBaseGravityComponent* FieldToRemove);
 
-	// Time spent not moving. We don't need to add force if it's been sitting, that way it can sleep.
+	UFUNCTION()
+	void AddToAdditiveGravityFieldArray(UBaseGravityComponent* FieldToAdd);
+
+	UFUNCTION()
+	void RemoveFromAdditiveGravityFieldArray(UBaseGravityComponent* FieldToRemove);
+
+	UFUNCTION()
+	void CalculateCurrentGravity();
+
+	UFUNCTION()
+	FVector GetGravityDirection();
+
+	UFUNCTION()
+	float GetGravityStrength();
+
+	// Time spent not moving. We don't need to add force if it's been sitting, that way it can sleep. Only used by physics bodies
 	float TimeSpentNotMoving = 0.0f;
 
-	FVector LastPosition = FVector(0.0f, 0.0f, 0.0f);
-
+	// Used in putting physics actors to sleep after not moving
 	FRotator LastRotation;
+
+	// Used in putting physics actors to sleep after not moving
+	FVector LastPosition = FVector(0.0f, 0.0f, 0.0f);
 };

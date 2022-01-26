@@ -4,7 +4,7 @@
 #include "Circuit/Components/CircuitSkeletalMeshComponent.h"
 
 UCircuitSkeletalMeshComponent::UCircuitSkeletalMeshComponent() {
-	SetIsReplicated(true);
+	//SetIsReplicatedByDefault(true);
 }
 
 void UCircuitSkeletalMeshComponent::BeginPlay() {

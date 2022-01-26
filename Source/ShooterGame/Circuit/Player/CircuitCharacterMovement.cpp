@@ -3113,9 +3113,9 @@ FVector UCircuitCharacterMovement::GetGravityDirection() const
 	if (GravityScale != 0.0f)
 	{
 		ACircuitCharacter* CircuitCharacter = Cast<ACircuitCharacter>(CharacterOwner);
-		if (CircuitCharacter->GravityComponent && !CircuitCharacter->GravityComponent->GravitySettings.GravityDirection.IsZero()) {
+		if (CircuitCharacter->GravityComponent && !CircuitCharacter->GravityComponent->GetGravityDirection().IsZero()) {
 			//UE_LOG(LogTemp, Error, TEXT("[%f] UCircuitCharacterMovement GetGravityDirection GravityComponent %f %f %f"), GetWorld()->GetRealTimeSeconds(), Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent->GravitySettings.GravityDirection.X, Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent->GravitySettings.GravityDirection.Y, Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent->GravitySettings.GravityDirection.Z);
-			return Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent->GravitySettings.GravityDirection;
+			return Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent->GetGravityDirection();
 		}
 
 		const float WorldGravityZ = Super::GetGravityZ();
@@ -3132,8 +3132,8 @@ FVector UCircuitCharacterMovement::GetGravityDirection() const
 // DONE
 FVector UCircuitCharacterMovement::GetGravityScaled()
 {
-	if (Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent && !Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent->GravitySettings.GravityDirection.IsZero()) {
-		return GetGravityDirection() * Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent->GravitySettings.GravityPower; /* (FMath::Abs(Super::GetGravityZ()));*/
+	if (Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent && !Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent->GetGravityDirection().IsZero()) {
+		return GetGravityDirection() * Cast<ACircuitCharacter>(CharacterOwner)->GravityComponent->GetGravityStrength(); /* (FMath::Abs(Super::GetGravityZ()));*/
 	}
 
 	return FVector(0.0f, 0.0f, GetGravityZ());
