@@ -35,6 +35,8 @@ public class ShooterGame : ModuleRules
 				"AIModule",
 				"GameplayTasks",
 				"Gauntlet",
+				"RHI",
+				"UMG",
 			}
 		);
 

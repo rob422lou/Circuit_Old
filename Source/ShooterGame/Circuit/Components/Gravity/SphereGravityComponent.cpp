@@ -12,6 +12,7 @@ USphereGravityComponent::USphereGravityComponent()
     if (Asset) {
         SetStaticMesh(Asset);
     }
+    Range = 1000.0f;
 }
 
 FVector USphereGravityComponent::CalculateGravity(FVector WorldPosition) {
@@ -28,8 +29,8 @@ FVector USphereGravityComponent::CalculateGravity(FVector WorldPosition) {
             Falloff = (1.0f - ((GetComponentLocation() - WorldPosition).Size() / Range));
         }
         if (bIsInverted) {
-            return (GetComponentLocation() - WorldPosition).GetSafeNormal() * GravityStrength * -1.0f * Falloff;
+            return (GetComponentLocation() - WorldPosition).GetSafeNormal() * GravityStrength * -1.0f;
         }
-        return (GetComponentLocation() - WorldPosition).GetSafeNormal() * GravityStrength * Falloff;
+        return (GetComponentLocation() - WorldPosition).GetSafeNormal() * GravityStrength * Falloff; // @TODO - add falloff
     }
 }

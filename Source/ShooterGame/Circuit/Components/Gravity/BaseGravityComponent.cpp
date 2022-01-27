@@ -29,7 +29,6 @@ void UBaseGravityComponent::BeginPlay()
     //UE_LOG(LogTemp, Warning, TEXT("[%f] UBaseGravityComponent BeginPlay"), GetWorld()->GetRealTimeSeconds());
 
     if (GetStaticMesh() == nullptr) {
-
         UE_LOG(LogTemp, Warning, TEXT("[%f] UBaseGravityComponent GetStaticMesh() == nullptr"), GetWorld()->GetRealTimeSeconds());
         return;
     }
@@ -103,6 +102,7 @@ void UBaseGravityComponent::OnOverlapBegin(UPrimitiveComponent* OverlappedCompon
 
 void UBaseGravityComponent::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) {
     if (!OtherComp) {
+        UE_LOG(LogTemp, Warning, TEXT("[%f] UBaseGravityComponent OnOverlapEnd() OtherComp == nullptr"), GetWorld()->GetRealTimeSeconds());
         return;
     }
 

@@ -66,11 +66,13 @@ public:
 	/** notify local client about deaths */
 	void OnDeathMessage(class AShooterPlayerState* KillerPlayerState, class AShooterPlayerState* KilledPlayerState, const UDamageType* KillerDamageType);
 
+	// @CIRCUIT - virtual
 	/** toggle InGameMenu handler */
-	void OnToggleInGameMenu();
+	virtual void OnToggleInGameMenu();
 
+	// @CIRCUIT - virtual
 	/** Show the in-game menu if it's not already showing */
-	void ShowInGameMenu();
+	virtual void ShowInGameMenu();
 
 	/** Hides scoreboard if currently diplayed */
 	void OnConditionalCloseScoreboard();

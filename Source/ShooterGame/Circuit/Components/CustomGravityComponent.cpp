@@ -140,6 +140,7 @@ void UCustomGravityComponent::RemoveFromGravityFieldArray(UBaseGravityComponent*
 			}
 			else {
 				CurrentGravityDirection = FVector(0.0f, 0.0f, -1.0f);
+				CurrentGravityStrength = 980.0f;
 
 				if (bIsSkeletalMesh) {
 					EffectedSkeletalComponent->SetEnableGravity(true);
@@ -169,6 +170,19 @@ void UCustomGravityComponent::RemoveFromAdditiveGravityFieldArray(UBaseGravityCo
 
 	AdditiveGravityFieldArray.Remove(FieldToRemove);
 
+	if (AdditiveGravityFieldArray.Num() == 0 && GravityFieldArray.Num() == 0) {
+		CurrentGravityDirection = FVector(0.0f, 0.0f, -1.0f);
+		CurrentGravityStrength = 980.0f;
+
+		if (bIsSkeletalMesh) {
+			EffectedSkeletalComponent->SetEnableGravity(true);
+		}
+		else if (EffectedCharacter == nullptr) {
+			EffectedComponent->SetEnableGravity(true);
+		}
+	}
+
+	/*
 	if (FieldIndex != INDEX_NONE && AdditiveFieldIndex != INDEX_NONE) {
 		if (FieldIndex == 0 && AdditiveFieldIndex == 0) {
 			// Update current gravity to next in array
@@ -187,6 +201,7 @@ void UCustomGravityComponent::RemoveFromAdditiveGravityFieldArray(UBaseGravityCo
 			}
 		}
 	}
+	*/
 }
 
 void UCustomGravityComponent::CalculateCurrentGravity() {
